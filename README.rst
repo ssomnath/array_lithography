@@ -8,4 +8,3 @@ Trigger Utilities for Parallel SPM Lithography
 Journal papers that used / were generated using this software
 --------------------------------------------------------------
 1. Somnath, Suhas, Hoe Joon Kim, Huan Hu, and William P. King. "Parallel nanoimaging and nanolithography using a heated microcantilever array." Nanotechnology 25, no. 1 (2013): 014001.
-2. Seong, Myunghoon, Suhas Somnath, Hoe Joon Kim, and William P. King. "Parallel nanoimaging using an array of 30 heated microcantilevers." RSC Advances 4, no. 47 (2014): 24747-24754.
