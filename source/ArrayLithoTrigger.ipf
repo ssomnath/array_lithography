@@ -1,6 +1,36 @@
 #pragma rtGlobals=1		// Use modern global access method.
 
-// Version History:
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////   INSTRUCTIONS FOR CODE USAGE   ///////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// Just click on UIUC >> Array Litho Trigger 
+// The code should automatically calibrate the tip position recognition
+// Use Smart Litho - make 5 layers one for each cantilever. 
+// Make a 6th layer that encompasses ALL of the previous layers
+// Hide layers 1-5, and only have layer 6 shown. 
+// Connect BNCOut 0 as trigger channel 1 (cantilevers 1-3)
+// Connect BNC Out 1 as trigger channel 2 (cantilevers (4-5)
+// Each time you move the scan window - press the "Automatic" calibration button
+// Lock the crosspoint before performing lithgraphy via "Lock" button
+// Perform lithography
+// Press "Reset" button under Crosspoint to enable scanning / other operations again.
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////   VERSION HISTORY   //////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// Upcoming Changes:
+//       Lithography.ipf now uses Output.C and BNCOut2 instead of Output.B/Ou0 for single cantilever triggering.
+
+// Version 1.6:
+//       Cleaned up UI
+//       Added Calibration - manual/auto 
+//       Added  Crosspoint lock/unlock buttons
+//       Auto Caibration button takes over previous - refresh button (restarting bgfun) & now recalibrates position
+//       Auto Caibration button now accounts for scan position change.
+//       Auto calibration button now refreshes at global rate
 
 // Version 1.5:
 // 	Writing the binary information to the Channels in the bg function
@@ -33,10 +63,15 @@
 //	Calibrates the tip position.
 // 	displays the x and y position of the tip using a background function
 
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////   BEGIN CODE   /////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 Menu "UIUC"
 	SubMenu "Lithography"
 		"Array Litho Trigger", LithoTriggerDriver()
-		"Tip Position Calibration", TipPosCalibDriver("")
+		// "Tip Position Calibration", TipPosCalibDriver("") // There is no need for this.
 	End
 End
 
@@ -100,10 +135,7 @@ Function LithoTriggerDriver()
 	Endif
 			
 	Variable/G GrunMeter = 1
-	//SetBackground bgThermalMeter()
-	//GrunMeter = 1;CtrlBackground period=5,start
-	//The delay I've given the background function has
-	// a value of 5. or a delay of (5/60 = 1/12 sec) or 12 hz.
+
 	ARBackground("bgPosMonitor",gbgFunRate,"")
 	
 	//Reset the datafolder to the root / previous folder
@@ -113,16 +145,90 @@ Function LithoTriggerDriver()
 	Execute "LithoTriggerPanel()"
 End
 
-Function RefreshBGFun(ctrlname) : ButtonControl
-	String ctrlname
+Window LithoTriggerPanel(): Panel
+	
+	PauseUpdate; Silent 1		// building window...
+	NewPanel /K=1 /W=(485,145, 730,528) as "Array Trigger Panel"
+	SetDrawLayer UserBack
+	
+	SetDrawEnv fsize=18
+	DrawText 16,37, "Tip Position (um)"
+	
+	ValDisplay vd_Xpos,pos={16,50},size={90,20},title="X:"
+	ValDisplay vd_Xpos,limits={0,10,0},fsize=14
+	ValDisplay vd_Xpos, value=root:Packages:SmartLitho:ArrayTrigger:GXpos
+	
+	ValDisplay vd_Ypos,pos={130,50},size={90,20},title="Y:"
+	ValDisplay vd_Ypos,limits={0,10,0},fsize=14
+	ValDisplay vd_Ypos, value=root:Packages:SmartLitho:ArrayTrigger:GYpos
+	
+	SetDrawEnv fsize=18
+	DrawText 16,111, "Calibrate Position"
+		
+	Button but_Refresh,pos={33,122},size={78,25},title="Automatic", proc=AutoTipPosCalib
+	
+	Button but_ManCalib,pos={135,122},size={78,25},title="Manual", proc=TipPosCalibDriver
+	
+	SetDrawEnv fsize=18
+	DrawText 16,187, "Crosspoint"
+	
+	Button but_XPTlock,pos={33,200},size={78,25},title="Lock", proc=LockXPT
+	
+	Button but_XPTreset,pos={135,200},size={78,25},title="Reset", proc=ResetXPT
+	
+	
+	SetDrawEnv fsize=18
+	DrawText 16,268, "Active Cantilevers"
+	
+	SetDrawEnv fsize=16
+	DrawText 21,298, "1"
+	SetDrawEnv fsize=16
+	DrawText 66,298, "2"
+	SetDrawEnv fsize=16
+	DrawText 111,298, "3"
+	SetDrawEnv fsize=16
+	DrawText 156,298, "4"
+	SetDrawEnv fsize=16
+	DrawText 203,298, "5"
+	
+	ValDisplay vd_activeLED1, title="", value=Root:Packages:SmartLitho:ArrayTrigger:gActive[0]
+	ValDisplay vd_activeLED1, mode=2, limits={0,1,0}, highColor= (0,65280,0), zeroColor= (0,12032,0)
+	ValDisplay vd_activeLED1, lowColor= (0,12032,0), pos={18,307},size={16,16}, barmisc={0,0}, fsize=14
+	
+	ValDisplay vd_activeLED2, title="", value=Root:Packages:SmartLitho:ArrayTrigger:gActive[1]
+	ValDisplay vd_activeLED2, mode=2, limits={0,1,0}, highColor= (0,65280,0), zeroColor= (0,12032,0)
+	ValDisplay vd_activeLED2, lowColor= (0,12032,0), pos={62,307},size={16,16}, barmisc={0,0}, fsize=14
+	
+	ValDisplay vd_activeLED3, title="", value=Root:Packages:SmartLitho:ArrayTrigger:gActive[2]
+	ValDisplay vd_activeLED3, mode=2, limits={0,1,0}, highColor= (0,65280,0), zeroColor= (0,12032,0)
+	ValDisplay vd_activeLED3, lowColor= (0,12032,0), pos={109,307},size={16,16}, barmisc={0,0}, fsize=14
+	
+	ValDisplay vd_activeLED4, title="", value=Root:Packages:SmartLitho:ArrayTrigger:gActive[3]
+	ValDisplay vd_activeLED4, mode=2, limits={0,1,0}, highColor= (0,65280,0), zeroColor= (0,12032,0)
+	ValDisplay vd_activeLED4, lowColor= (0,12032,0), pos={153,307},size={16,16}, barmisc={0,0}, fsize=14
+	
+	ValDisplay vd_activeLED5, title="", value=Root:Packages:SmartLitho:ArrayTrigger:gActive[4]
+	ValDisplay vd_activeLED5, mode=2, limits={0,1,0}, highColor= (0,65280,0), zeroColor= (0,12032,0)
+	ValDisplay vd_activeLED5, lowColor= (0,12032,0), pos={199,307},size={16,16}, barmisc={0,0}, fsize=14
 
+	SetDrawEnv fsize=16, textrgb= (0,0,65280),fstyle= 1
+	DrawText 12,362, "Suhas Somnath, UIUC 2011"
+End
+
+Function AutoTipPosCalib(ctrlname) : ButtonControl
+	String ctrlname
+	
+	// Restart background function monitoring tip position (in case of compilation error)
 	String dfSave = GetDataFolder(1)
 	SetDataFolder root:packages:SmartLitho:ArrayTrigger
 	NVAR GrunMeter, gBgFunRate
 	GRunMeter = 1
-	ARBackground("bgPosMonitor",1,"")
+	ARBackground("bgPosMonitor",gbgFunRate,"")
 	SetDataFolder dfSave
 	
+	// Also calibrate position while we're at it
+	CalibratePosn()
+		
 End
 
 // This is the interface function with Lithography.ipf
@@ -158,6 +264,27 @@ Function resetLithoSetup()
 	//print "Reset crosspoint and necessary waves"
 End
 
+Function LockXPT(ctrlname) : ButtonControl
+	String ctrlname
+	
+	XPTPopupFunc("LoadXPTPopup",7,"Litho")
+	WireXPT2("BNCOut0Popup","OutA")
+	WireXPT2("BNCOut1Popup","OutB")
+	XPTButtonFunc("WriteXPT")
+	ARCheckFunc("DontChangeXPTCheck",1)
+	
+End
+
+Function ResetXPT(ctrlname) : ButtonControl
+	String ctrlname
+
+	WireXPT2("BNCOut0Popup","Ground")
+	WireXPT2("BNCOut1Popup","Ground")
+	XPTButtonFunc("WriteXPT")
+	ARCheckFunc("DontChangeXPTCheck",0)
+	
+End
+
 Function WireXPT2(whichpopup,channel)
 	String whichpopup, channel
 	
@@ -165,70 +292,6 @@ Function WireXPT2(whichpopup,channel)
 
 End
 
-
-Window LithoTriggerPanel(): Panel
-	
-	PauseUpdate; Silent 1		// building window...
-	NewPanel /K=1 /W=(485,145, 730,435) as "Litho Trigger Panel"
-	SetDrawLayer UserBack
-	
-	SetDrawEnv fsize=18
-	DrawText 16,37, "Tip Position (um)"
-	
-	ValDisplay vd_Xpos,pos={16,50},size={90,20},title="X:"
-	ValDisplay vd_Xpos,limits={0,10,0},fsize=14
-	ValDisplay vd_Xpos, value=root:Packages:SmartLitho:ArrayTrigger:GXpos
-	
-	ValDisplay vd_Ypos,pos={130,50},size={90,20},title="Y:"
-	ValDisplay vd_Ypos,limits={0,10,0},fsize=14
-	ValDisplay vd_Ypos, value=root:Packages:SmartLitho:ArrayTrigger:GYpos
-	
-	Button but_ManCalib,pos={17,86},size={207,25},title="Manual Tip Position Calibration", proc=TipPosCalibDriver
-	
-	SetVariable sv_tolerance,pos={14,127},size={144,20},title="Tolerance (m)"
-	SetVariable sv_tolerance,fsize=14, limits={1E-8,1E-5,0}
-	SetVariable sv_tolerance, value=root:Packages:SmartLitho:ArrayTrigger:GTolerance
-	
-	Button but_Refresh,pos={168,125},size={57,25},title="Refresh", proc=RefreshBGFun
-	
-	
-	SetDrawEnv fsize=18
-	DrawText 16,185, "Active Cantilevers"
-	
-	SetDrawEnv fsize=16
-	DrawText 21,211, "1"
-	SetDrawEnv fsize=16
-	DrawText 66,211, "2"
-	SetDrawEnv fsize=16
-	DrawText 111,211, "3"
-	SetDrawEnv fsize=16
-	DrawText 156,211, "4"
-	SetDrawEnv fsize=16
-	DrawText 201,211, "5"
-	
-	ValDisplay vd_activeLED1, title="", value=Root:Packages:SmartLitho:ArrayTrigger:gActive[0]
-	ValDisplay vd_activeLED1, mode=2, limits={0,1,0}, highColor= (0,65280,0), zeroColor= (0,12032,0)
-	ValDisplay vd_activeLED1, lowColor= (0,12032,0), pos={18,220},size={16,16}, barmisc={0,0}, fsize=14
-	
-	ValDisplay vd_activeLED2, title="", value=Root:Packages:SmartLitho:ArrayTrigger:gActive[1]
-	ValDisplay vd_activeLED2, mode=2, limits={0,1,0}, highColor= (0,65280,0), zeroColor= (0,12032,0)
-	ValDisplay vd_activeLED2, lowColor= (0,12032,0), pos={62,220},size={16,16}, barmisc={0,0}, fsize=14
-	
-	ValDisplay vd_activeLED3, title="", value=Root:Packages:SmartLitho:ArrayTrigger:gActive[2]
-	ValDisplay vd_activeLED3, mode=2, limits={0,1,0}, highColor= (0,65280,0), zeroColor= (0,12032,0)
-	ValDisplay vd_activeLED3, lowColor= (0,12032,0), pos={109,220},size={16,16}, barmisc={0,0}, fsize=14
-	
-	ValDisplay vd_activeLED4, title="", value=Root:Packages:SmartLitho:ArrayTrigger:gActive[3]
-	ValDisplay vd_activeLED4, mode=2, limits={0,1,0}, highColor= (0,65280,0), zeroColor= (0,12032,0)
-	ValDisplay vd_activeLED4, lowColor= (0,12032,0), pos={153,220},size={16,16}, barmisc={0,0}, fsize=14
-	
-	ValDisplay vd_activeLED5, title="", value=Root:Packages:SmartLitho:ArrayTrigger:gActive[4]
-	ValDisplay vd_activeLED5, mode=2, limits={0,1,0}, highColor= (0,65280,0), zeroColor= (0,12032,0)
-	ValDisplay vd_activeLED5, lowColor= (0,12032,0), pos={199,220},size={16,16}, barmisc={0,0}, fsize=14
-
-	SetDrawEnv fsize=16, textrgb= (0,0,65280),fstyle= 1
-	DrawText 12,275, "Suhas Somnath, UIUC 2011"
-End
 
 Function bgPosMonitor()
 		
@@ -380,14 +443,13 @@ Function TipPosCalibDriver(ctrlname) : ButtonControl
 	Variable/G gYpos= Ypos
 	Variable poscalibrated = NumVarOrDefault(":gposcalibrated",0)
 	Variable/G gposcalibrated= poscalibrated
+	Variable tolerance = NumVarOrDefault(":gtolerance",1E-7)
+	Variable/G gtolerance= tolerance
+	Variable bgFunRate = NumVarOrDefault(":gbgFunRate",10)
+	Variable/G gbgFunRate= bgFunRate // Higher this number - faster the background function runs
 	
-	// Should be starting and stopping the meter within Lithography.ipf
 	Variable/G GrunMeter = 1
-	//SetBackground bgThermalMeter()
-	//GrunMeter = 1;CtrlBackground period=5,start
-	//The delay I've given the background function has
-	// a value of 5. or a delay of (5/60 = 1/12 sec) or 12 hz.
-	ARBackground("bgPosMonitor",1,"")
+	ARBackground("bgPosMonitor",gbgFunRate,"")
 
 	// Create the control panel.
 	Execute "TipPosCalibPanel()"
@@ -396,7 +458,7 @@ End
 Window TipPosCalibPanel(): Panel
 	
 	PauseUpdate; Silent 1		// building window...
-	NewPanel /K=1 /W=(185,145, 430,335) as "Tip Pos Calib Panel"
+	NewPanel /K=1 /W=(185,145, 430,380) as "Tip Pos Calib Panel"
 	SetDrawLayer UserBack
 	
 	SetDrawEnv fsize=18
@@ -419,10 +481,14 @@ Window TipPosCalibPanel(): Panel
 	
 	SetVariable sv_Yoffset,pos={130,113},size={95,20},title="Y"
 	SetVariable sv_Yoffset,fsize=14, limits={1E-8,1E-5,0}
-	SetVariable sv_Yoffset, value=root:Packages:SmartLitho:ArrayTrigger:gYoffset	
+	SetVariable sv_Yoffset, value=root:Packages:SmartLitho:ArrayTrigger:gYoffset
+	
+	SetVariable sv_tolerance,pos={14,158},size={211,20},title="Position Tolerance (m)"
+	SetVariable sv_tolerance,fsize=14, limits={1E-8,1E-5,0}
+	SetVariable sv_tolerance, value=root:Packages:SmartLitho:ArrayTrigger:GTolerance	
 
 	SetDrawEnv fsize=16, textrgb= (0,0,65280),fstyle= 1
-	DrawText 12,171, "Suhas Somnath, UIUC 2011"
+	DrawText 12,221, "Suhas Somnath, UIUC 2011"
 End
 
 
