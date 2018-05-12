@@ -22,10 +22,11 @@
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Upcoming Changes:
-//	Depressed 'Litho' or 'Imaging' button when that mode is in use. LEDs are too much work.
+//
 
 // Version 1.8:
 //	Option to choose triggering using sorted or unsorted patterns.
+//	Depressed 'Litho' or 'Imaging' button when that mode is in use.
 
 // Version 1.7:
 //	Array triggering with unsorted lines within each layer.
@@ -114,6 +115,10 @@ Function LithoTriggerDriver()
 	Variable/G gdoingLitho= doingLitho
 	Variable bgFunRate = NumVarOrDefault(":gbgFunRate",10)
 	Variable/G gbgFunRate= bgFunRate // Higher this number - faster the background function runs
+	Variable sortOrder = NumVarOrDefault(":gsortOrder",1)
+	Variable/G gsortOrder= sortOrder
+	
+	Variable/G gDummy = 0;
 	
 	if(!exists("gActive"))
 		Make/O/N=5 gActive
@@ -121,21 +126,22 @@ Function LithoTriggerDriver()
 	
 	// Index (in wave) of line currently under  scrutiny
 	// MUST be reset on each lithography start
-	if(!exists("gCurrentIndex"))
-		Make/O/N=5 gCurrentIndex
+	if(!exists("gCurrentIndex2"))
+		Make/O/N=5 gCurrentIndex2
 	endif	
 	
 	// Similar to gCurrent Index but instead it keeps track 
 	// of the last line with a hit.
 	// Must be reset to -1 for all cantilevers on Litho start
-	if(!exists("gPrevIndex"))
-		Make/O/N=5 gPrevIndex
+	if(!exists("gPrevIndex") || !exists("gPrevIndex2"))
+		Make/O/N=5 gPrevIndex, gPrevIndex2
 	else
-		Wave gPrevIndex
+		Wave gPrevIndex, gPrevIndex2
 	endif
 	Variable i=0
 	for(i=0; i<5;i+=1)
 		gPrevIndex[i] = -1;
+		gPrevIndex2[i] = -1;
 	endfor
 	
 	// Calibrate tip position here.
@@ -157,7 +163,7 @@ End
 Window LithoTriggerPanel(): Panel
 	
 	PauseUpdate; Silent 1		// building window...
-	NewPanel /K=1 /W=(485,145, 730,528) as "Array Trigger Panel"
+	NewPanel /K=1 /W=(485,145, 728,585) as "Array Trigger Panel"
 	SetDrawLayer UserBack
 	
 	SetDrawEnv fsize=18
@@ -179,51 +185,81 @@ Window LithoTriggerPanel(): Panel
 	Button but_ManCalib,pos={135,122},size={78,25},title="Manual", proc=TipPosCalibDriver
 	
 	SetDrawEnv fsize=18
-	DrawText 16,187, "Crosspoint"
-		
-	Button but_XPTLitholock,pos={23,200},size={50,32},title="Litho", proc=LockLithoXPT
+	DrawText 16,185, "Pattern Order"
 	
-	Button but_XPTReadlock,pos={84,200},size={71,32},title="Imaging", proc=LockReadXPT
+	CheckBox radio_Sort1, pos={35,203},size={135,18},title="Unsorted",live= 1
+	CheckBox radio_Sort1, value=1, proc=SetSortOrder,mode=1
 	
-	Button but_XPTreset,pos={165,200},size={59,32},title="Reset", proc=ResetXPT
-	
+	CheckBox radio_Sort2, pos={146,203},size={135,18},title="Sorted",live= 1
+	CheckBox radio_Sort2, value=0, proc=SetSortOrder,mode=1
 	
 	SetDrawEnv fsize=18
-	DrawText 16,268, "Active Cantilevers"
+	DrawText 16,256, "Crosspoint"
+		
+	Button but_XPTLitholock,pos={23,269},size={50,32},title="Litho", proc=LockLithoXPT
+	
+	Button but_XPTReadlock,pos={84,269},size={71,32},title="Imaging", proc=LockReadXPT
+	
+	Button but_XPTreset,pos={165,269},size={59,32},title="Reset", proc=ResetXPT
+	
+	SetDrawEnv fsize=18
+	DrawText 16,337, "Active Cantilevers"
 	
 	SetDrawEnv fsize=16
-	DrawText 21,298, "1"
+	DrawText 21,367, "1"
 	SetDrawEnv fsize=16
-	DrawText 66,298, "2"
+	DrawText 66,367, "2"
 	SetDrawEnv fsize=16
-	DrawText 111,298, "3"
+	DrawText 111,367, "3"
 	SetDrawEnv fsize=16
-	DrawText 156,298, "4"
+	DrawText 156,367, "4"
 	SetDrawEnv fsize=16
-	DrawText 203,298, "5"
+	DrawText 203,367, "5"
 	
 	ValDisplay vd_activeLED1, title="", value=Root:Packages:SmartLitho:ArrayTrigger:gActive[0]
 	ValDisplay vd_activeLED1, mode=2, limits={0,1,0}, highColor= (0,65280,0), zeroColor= (0,12032,0)
-	ValDisplay vd_activeLED1, lowColor= (0,12032,0), pos={18,307},size={16,16}, barmisc={0,0}, fsize=14
+	ValDisplay vd_activeLED1, lowColor= (0,12032,0), pos={18,376},size={16,16}, barmisc={0,0}, fsize=14
 	
 	ValDisplay vd_activeLED2, title="", value=Root:Packages:SmartLitho:ArrayTrigger:gActive[1]
 	ValDisplay vd_activeLED2, mode=2, limits={0,1,0}, highColor= (0,65280,0), zeroColor= (0,12032,0)
-	ValDisplay vd_activeLED2, lowColor= (0,12032,0), pos={62,307},size={16,16}, barmisc={0,0}, fsize=14
+	ValDisplay vd_activeLED2, lowColor= (0,12032,0), pos={62,376},size={16,16}, barmisc={0,0}, fsize=14
 	
 	ValDisplay vd_activeLED3, title="", value=Root:Packages:SmartLitho:ArrayTrigger:gActive[2]
 	ValDisplay vd_activeLED3, mode=2, limits={0,1,0}, highColor= (0,65280,0), zeroColor= (0,12032,0)
-	ValDisplay vd_activeLED3, lowColor= (0,12032,0), pos={109,307},size={16,16}, barmisc={0,0}, fsize=14
+	ValDisplay vd_activeLED3, lowColor= (0,12032,0), pos={109,376},size={16,16}, barmisc={0,0}, fsize=14
 	
 	ValDisplay vd_activeLED4, title="", value=Root:Packages:SmartLitho:ArrayTrigger:gActive[3]
 	ValDisplay vd_activeLED4, mode=2, limits={0,1,0}, highColor= (0,65280,0), zeroColor= (0,12032,0)
-	ValDisplay vd_activeLED4, lowColor= (0,12032,0), pos={153,307},size={16,16}, barmisc={0,0}, fsize=14
+	ValDisplay vd_activeLED4, lowColor= (0,12032,0), pos={153,376},size={16,16}, barmisc={0,0}, fsize=14
 	
 	ValDisplay vd_activeLED5, title="", value=Root:Packages:SmartLitho:ArrayTrigger:gActive[4]
 	ValDisplay vd_activeLED5, mode=2, limits={0,1,0}, highColor= (0,65280,0), zeroColor= (0,12032,0)
-	ValDisplay vd_activeLED5, lowColor= (0,12032,0), pos={199,307},size={16,16}, barmisc={0,0}, fsize=14
+	ValDisplay vd_activeLED5, lowColor= (0,12032,0), pos={199,376},size={16,16}, barmisc={0,0}, fsize=14
 
 	SetDrawEnv fsize=16, textrgb= (0,0,65280),fstyle= 1
-	DrawText 12,362, "Suhas Somnath, UIUC 2011"
+	DrawText 12,431, "Suhas Somnath, UIUC 2011"
+End
+
+Function SetSortOrder(name,value)
+	String name
+	Variable value
+	
+	String dfSave = GetDataFolder(1)
+	SetDataFolder Root:Packages:SmartLitho:ArrayTrigger
+	NVAR gSortOrder
+	
+	strswitch (name)
+		case "radio_Sort1":
+			gSortOrder= 1
+			break
+		case "radio_Sort2":
+			gSortOrder= 2
+			break
+	endswitch
+	CheckBox radio_Sort1,value= gSortOrder==1
+	CheckBox radio_Sort2,value= gSortOrder==2
+	
+	SetDataFolder dfSave
 End
 
 Function AutoTipPosCalib(ctrlname) : ButtonControl
@@ -257,12 +293,13 @@ End
 Function resetLithoSetup()
 	String dfSave = GetDataFolder(1)
 	SetDataFolder root:packages:SmartLitho:ArrayTrigger
-	Wave gPrevIndex, gCurrentIndex
-	Redimension /N=(0) gCurrentIndex
-	Redimension /N=(5) gCurrentIndex
+	Wave gPrevIndex, gCurrentIndex2, gPrevIndex2
+	Redimension /N=(0) gCurrentIndex2
+	Redimension /N=(5) gCurrentIndex2
 	Variable i=0
 	for(i=0; i<5;i+=1)
 		gPrevIndex[i] = -1;
+		gPrevIndex2[i] = -1;
 	endfor
 	SetDataFolder dfSave
 	
@@ -284,7 +321,10 @@ Function LockLithoXPT(ctrlname) : ButtonControl
 	XPTButtonFunc("WriteXPT")
 	ARCheckFunc("DontChangeXPTCheck",1)
 
-	//ModifyControl but_XPTLitholock, disable=2
+	Button but_XPTLitholock, disable=2
+	Button but_XPTReadlock, disable=0
+	Button but_XPTreset, disable=0
+	
 	// This probably affects litho as well - just to be safe
 	MainSetVarFunc("IntegralGainSetVar_0",10,"10","MasterVariablesWave[%IntegralGain][%Value]")
 	
@@ -302,7 +342,9 @@ Function LockReadXPT(ctrlname) : ButtonControl
 	XPTButtonFunc("WriteXPT")
 	ARCheckFunc("DontChangeXPTCheck",1)
 	
-	//ModifyControl but_XPTReadlock, disable=2
+	Button but_XPTLitholock, disable=0
+	Button but_XPTReadlock, disable=2
+	Button but_XPTreset, disable=0
 	
 	MainSetVarFunc("SetpointSetVar_0",0.2,"0.2","MasterVariablesWave[%DeflectionSetpointVolts][%Value]")
 	MainSetVarFunc("IntegralGainSetVar_0",0.5,"0.5","MasterVariablesWave[%IntegralGain][%Value]")
@@ -316,6 +358,10 @@ Function ResetXPT(ctrlname) : ButtonControl
 	WireXPT2("BNCOut1Popup","Ground")
 	XPTButtonFunc("WriteXPT")
 	ARCheckFunc("DontChangeXPTCheck",0)
+	
+	Button but_XPTLitholock, disable=0
+	Button but_XPTReadlock, disable=0
+	Button but_XPTreset, disable=0
 	
 End
 
@@ -332,8 +378,8 @@ Function bgPosMonitor()
 	String dfSave = GetDataFolder(1)
 		
 	SetDataFolder root:packages:SmartLitho:ArrayTrigger
-	NVAR gXoffset, gYoffset, gXpos, gYpos, gRunMeter, gTolerance, gDoingLitho
-	Wave gActive, gPrevIndex
+	NVAR gXoffset, gYoffset, gXpos, gYpos, gRunMeter, gTolerance, gDoingLitho, gSortOrder, gDummy
+	Wave gActive, gPrevIndex, gPrevIndex2, gCurrentIndex2
 
 	gXpos = (gXoffset + td_RV("Input.X")*GV("XLVDTSens"))* 1E+6
 	gYpos = (gYoffset + td_RV("Input.Y")*GV("YLVDTSens")) * 1E+6
@@ -361,57 +407,106 @@ Function bgPosMonitor()
 		td_WV("Output.B",0)
 		return gRunMeter	
 	endif
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	
-	//print "################"
+	if(gSortOrder == 1) // Unsorted Patterns
 	
+		gDummy = enoise(10);
 	
-	for(i=0;i<5; i=i+1) 
+		for(i=0;i<5; i=i+1) 
 	
-		Variable hit=0;
+			Variable hit=0;
 		
-		// Check if tip was doing litho during previous run:
-		if(gPrevIndex[i] != -1)
-			// yes: check if tip is still within this line
-			hit = pointLineDist(Master_XLitho[gPrevIndex[i]],Master_YLitho[gPrevIndex[i]],Master_XLitho[gPrevIndex[i]+1],Master_YLitho[gPrevIndex[i]+1],gXpos*1e-6,gYpos*1e-6, gTolerance)
-			//print "looking within line (" + num2str(Master_XLitho[lineindex])+","+num2str(Master_YLitho[lineindex])+") - ("+num2str(Master_XLitho[lineindex+1])+","+num2str(Master_XLitho[lineindex+1])+"). Hit: " + num2str(hit)
-			if(hit ==1)
-				gActive[i] = 1;
-				////print "hit because of hit"
-				continue; // equivalent of saying move to next iteration
-			endif
-			//print "no hit after hit"
-			// Not a hit:
-			gPrevIndex[i] = -1; // but still search all lines for a hit.
-			// Might be worth looking at the immidiate next line alone once. 
-		endif //else
-			// If code comes here: tip may have been doing litho previously but is not on that previous line now
-					
-			// Start a loop to see if we get a hit for EVERY line:
-			Variable j=Layers[i][1];
-			gPrevIndex[i] = -1; // No more searching. Move to next cantilever
-			gActive[i] = 0;	
-			do	
-				// 1. Check if hit:
-				hit = pointLineDist(Master_XLitho[j],Master_YLitho[j],Master_XLitho[j+1],Master_YLitho[j+1],gXpos*1e-6,gYpos*1e-6, gTolerance)
-				if(hit==1)
-					//print "line " + num2str(j) +" was a hit!"
+			// Check if tip was doing litho during previous run:
+			if(gPrevIndex[i] != -1)
+				// yes: check if tip is still within this line
+				hit = pointLineDist(Master_XLitho[gPrevIndex[i]],Master_YLitho[gPrevIndex[i]],Master_XLitho[gPrevIndex[i]+1],Master_YLitho[gPrevIndex[i]+1],gXpos*1e-6,gYpos*1e-6, gTolerance)
+				//print "looking within line (" + num2str(Master_XLitho[lineindex])+","+num2str(Master_YLitho[lineindex])+") - ("+num2str(Master_XLitho[lineindex+1])+","+num2str(Master_XLitho[lineindex+1])+"). Hit: " + num2str(hit)
+				if(hit ==1)
 					gActive[i] = 1;
-					gPrevIndex[i] =j;
-					break; // break this while loop only equivalent of saying move to next cantilever;
+					////print "hit because of hit"
+					continue; // equivalent of saying move to next iteration
 				endif
-				//print "line " + num2str(j) +" was not a hit. Moving to next line"
-				// 2. If not. move forward to next line
-				if(numtype(Master_XLitho[j+2]) != 0)// End of this segment
-					j = j + 3;
-				else // Next line starting from same end point as prev
-					j = j + 1;
-				endif
+				//print "no hit after hit"
+				// Not a hit:
+				gPrevIndex[i] = -1; // but still search all lines for a hit.
+				// Might be worth looking at the immidiate next line alone once. 
+			endif //else
+				// If code comes here: tip may have been doing litho previously but is not on that previous line now
+						
+				// Start a loop to see if we get a hit for EVERY line:
+				Variable j=Layers[i][1];
+				gPrevIndex[i] = -1; // No more searching. Move to next cantilever
+				gActive[i] = 0;	
+				do	
+					// 1. Check if hit:
+					hit = pointLineDist(Master_XLitho[j],Master_YLitho[j],Master_XLitho[j+1],Master_YLitho[j+1],gXpos*1e-6,gYpos*1e-6, gTolerance)
+					if(hit==1)
+						//print "line " + num2str(j) +" was a hit!"
+						gActive[i] = 1;
+						gPrevIndex[i] =j;
+						break; // break this while loop only equivalent of saying move to next cantilever;
+					endif
+					//print "line " + num2str(j) +" was not a hit. Moving to next line"
+					// 2. If not. move forward to next line
+					if(numtype(Master_XLitho[j+2]) != 0)// End of this segment
+						j = j + 3;
+					else // Next line starting from same end point as prev
+						j = j + 1;
+					endif
 								
-			while(j <= Layers[i][2])	
-
-		//endif
+				while(j <= Layers[i][2])	
 		
-	endfor
+		endfor
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	
+	else // Sorted Patterns
+	
+		gDummy = 99; // This is one way of really telling which triggering method is being used
+	
+		// Assuming that the single cantilever layers are 1-5
+		// Master layer (only one shown) is layer #6 or greater
+		for(i=0;i<5; i=i+1) // Start with single cantilever for now. Replace with 5.
+			// 1. Look up the start of the particular layer
+			Variable layerstartindex = Layers[i][1];
+			
+			// 2. find the line using the stored indices as an offset to the start position of the layer
+			Variable lineindex = gCurrentIndex2[i] + layerstartindex
+			
+			// 3. Find out if it was a hit by looking up the coordinates in the Master Litho waves:
+			hit = pointLineDist(Master_XLitho[lineindex],Master_YLitho[lineindex],Master_XLitho[lineindex+1],Master_YLitho[lineindex+1],gXpos*1e-6,gYpos*1e-6, gTolerance)
+			//print "looking within line (" + num2str(Master_XLitho[lineindex])+","+num2str(Master_YLitho[lineindex])+") - ("+num2str(Master_XLitho[lineindex+1])+","+num2str(Master_XLitho[lineindex+1])+"). Hit: " + num2str(hit)
+			
+			if(hit==1)
+				gActive[i] = 1
+				gPrevIndex2[i]=gCurrentIndex2[i]
+				// no changes to gCurrentIndex
+			else
+				if(gPrevIndex2[i] != gCurrentIndex2[i])
+					// Searching for new line (current index) but still did not find it
+					// Don't look for the line after that. Just try again, next cycle.
+					gActive[i] = 0
+					//return !gSortedRunMeter	
+				else
+					// Look in next line
+					if(numtype(Master_XLitho[lineindex+2]) != 0)// End of this segment
+						gCurrentIndex2[i] = gCurrentIndex2[i] + 3
+					else // Next line starting from same end point as prev
+						gCurrentIndex2[i] = gCurrentIndex2[i] + 2
+					endif
+					lineindex = gCurrentIndex2[i] + layerstartindex
+					hit = pointLineDist(Master_XLitho[lineindex],Master_YLitho[lineindex],Master_XLitho[lineindex+1],Master_YLitho[lineindex+1],gXpos*1e-6,gYpos*1e-6, gTolerance)
+					if(hit==1)
+						gActive[i] = 1
+						gPrevIndex2[i]=gCurrentIndex2[i]
+					else
+						gActive[i] = 0
+					endif
+				endif
+			endif
+		endfor
+	
+	endif
 	
 	// Now trigger using the DACs
 	// Output.A responsible for cant 1,2,3
@@ -490,6 +585,8 @@ Function TipPosCalibDriver(ctrlname) : ButtonControl
 	Variable/G gtolerance= tolerance
 	Variable bgFunRate = NumVarOrDefault(":gbgFunRate",10)
 	Variable/G gbgFunRate= bgFunRate // Higher this number - faster the background function runs
+	Variable sortOrder = NumVarOrDefault(":gsortOrder",1)
+	Variable/G gsortOrder= sortOrder
 	
 	Variable/G GrunMeter = 1
 	ARBackground("bgPosMonitor",gbgFunRate,"")
