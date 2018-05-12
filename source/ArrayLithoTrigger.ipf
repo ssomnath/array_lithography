@@ -2,17 +2,18 @@
 
 // Version History:
 
-//>> Possible Error in AFM3 Lithography code - the wave reset is called at a wrong time.
+// Version 1.5:
+// 	Writing the binary information to the Channels in the bg function
+//	Make crosspoint panel changes persist.
+//	Refresh button to restart bg process
+//	Make the bgfunction execute faster. (remove burst)?
+//	Get rid of annoying Wave referencing error
 
 // Version 1.4:
 //	From this version on, this code has to be tied with the SmartLitho code for the different layers.
 //	It can be made to compile without the SmartLitho but cannot run without it because of wave references
 //	Goes through the five layers in the SmartLitho folder and searches through them now.
 //	Corrected the 'not-yet-found-my-line' algorithm
-
-// Upcoming changes:
-// 	Writing the binary information to the Channels in the bg function
-//	Get rid of annoying Wave referencing error
 
 // Version 1.3
 // 	Completed main UI with 5 LEDs
@@ -32,10 +33,10 @@
 //	Calibrates the tip position.
 // 	displays the x and y position of the tip using a background function
 
-Menu "Macros"
-	SubMenu "UIUC Lithography"
+Menu "UIUC"
+	SubMenu "Lithography"
 		"Array Litho Trigger", LithoTriggerDriver()
-		"Tip Position Calibration", TipPosCalibDriver()
+		"Tip Position Calibration", TipPosCalibDriver("")
 	End
 End
 
@@ -67,6 +68,8 @@ Function LithoTriggerDriver()
 	Variable/G gtolerance= tolerance
 	Variable doingLitho = NumVarOrDefault(":gdoingLitho",0)
 	Variable/G gdoingLitho= doingLitho
+	Variable bgFunRate = NumVarOrDefault(":gbgFunRate",10)
+	Variable/G gbgFunRate= bgFunRate // Higher this number - faster the background function runs
 	
 	if(!exists("gActive"))
 		Make/O/N=5 gActive
@@ -83,6 +86,8 @@ Function LithoTriggerDriver()
 	// Must be reset to -1 for all cantilevers on Litho start
 	if(!exists("gPrevIndex"))
 		Make/O/N=5 gPrevIndex
+	else
+		Wave gPrevIndex
 	endif
 	Variable i=0
 	for(i=0; i<5;i+=1)
@@ -94,20 +99,30 @@ Function LithoTriggerDriver()
 		CalibratePosn()
 	Endif
 			
-	// Should be starting and stopping the meter within Lithography.ipf
 	Variable/G GrunMeter = 1
 	//SetBackground bgThermalMeter()
 	//GrunMeter = 1;CtrlBackground period=5,start
 	//The delay I've given the background function has
 	// a value of 5. or a delay of (5/60 = 1/12 sec) or 12 hz.
-	ARBackground("bgPosMonitor",1,"")
+	ARBackground("bgPosMonitor",gbgFunRate,"")
 	
 	//Reset the datafolder to the root / previous folder
 	SetDataFolder dfSave
 
 	// Create the control panel.
-	// missing reference to wave thrown somewhere here.
 	Execute "LithoTriggerPanel()"
+End
+
+Function RefreshBGFun(ctrlname) : ButtonControl
+	String ctrlname
+
+	String dfSave = GetDataFolder(1)
+	SetDataFolder root:packages:SmartLitho:ArrayTrigger
+	NVAR GrunMeter, gBgFunRate
+	GRunMeter = 1
+	ARBackground("bgPosMonitor",1,"")
+	SetDataFolder dfSave
+	
 End
 
 // This is the interface function with Lithography.ipf
@@ -134,14 +149,16 @@ Function resetLithoSetup()
 	endfor
 	SetDataFolder dfSave
 	
+	// Wiring the XPT doesn't seem to work here. 
 	// Rewire XPT for OutA, OutB
-	WireXpt("BNCOut0Popup","OutA")
-	WireXpt("BNCOut1Popup","OutB")
+	WireXPT2("BNCOut0Popup","OutA")
+	WireXPT2("BNCOut1Popup","OutB")
+	XPTButtonFunc("WriteXPT")
 	
 	//print "Reset crosspoint and necessary waves"
 End
 
-Function WireXpt(whichpopup,channel)
+Function WireXPT2(whichpopup,channel)
 	String whichpopup, channel
 	
 	execute("XPTPopupFunc(\"" + whichpopup + "\",WhichListItem(\""+ channel +"\",Root:Packages:MFP3D:XPT:XPTInputList,\";\",0,0)+1,\""+ channel +"\")")
@@ -168,9 +185,12 @@ Window LithoTriggerPanel(): Panel
 	
 	Button but_ManCalib,pos={17,86},size={207,25},title="Manual Tip Position Calibration", proc=TipPosCalibDriver
 	
-	SetVariable sv_tolerance,pos={47,127},size={150,20},title="Tolerance"
+	SetVariable sv_tolerance,pos={14,127},size={144,20},title="Tolerance (m)"
 	SetVariable sv_tolerance,fsize=14, limits={1E-8,1E-5,0}
 	SetVariable sv_tolerance, value=root:Packages:SmartLitho:ArrayTrigger:GTolerance
+	
+	Button but_Refresh,pos={168,125},size={57,25},title="Refresh", proc=RefreshBGFun
+	
 	
 	SetDrawEnv fsize=18
 	DrawText 16,185, "Active Cantilevers"
@@ -228,6 +248,8 @@ Function bgPosMonitor()
 			gActive[i] = 0
 		endfor
 		SetDataFolder dfSave	
+		td_WV("Output.A",0)
+		td_WV("Output.B",0)
 		return !gRunMeter	
 	endif
 	
@@ -238,6 +260,8 @@ Function bgPosMonitor()
 	if(gLayerNum < 5)
 		print "Error: Less than 5 layers found for Array Lithography. Aborting"
 		SetDataFolder dfSave	
+		td_WV("Output.A",0)
+		td_WV("Output.B",0)
 		return gRunMeter	
 	endif
 	
@@ -283,6 +307,13 @@ Function bgPosMonitor()
 		endif
 	endfor
 	
+	// Now trigger using the DACs
+	// Output.A responsible for cant 1,2,3
+	// Output.B responsible for cant 4,5
+	Variable op = gActive[0]*1 + gActive[1]*2 + gActive[2]*4
+	td_WV("Output.A", op)
+	op = gActive[3]*1 + gActive[4]*2
+	td_WV("Output.B",op)
 	
 	SetDataFolder dfSave	
 		
@@ -324,7 +355,8 @@ Function pointLineDist(xa,ya,xb,yb,xc,yc, tolerance)
 End
 
 
-Function TipPosCalibDriver()
+Function TipPosCalibDriver(ctrlname) : ButtonControl
+	String ctrlname
 	
 	// If the panel is already created, just bring it to the front.
 	DoWindow/F TipPosCalibPanel
