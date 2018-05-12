@@ -22,11 +22,17 @@
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Upcoming Changes:
-//
+// Fix the end of master line triggering
+// Fix the sorted pattern triggering
+
+// Version 1.9:
+//	Added slope match condition to unsorted triggering to prevent false positive triggering 
+//		(if driver crosses sub pattern).
 
 // Version 1.8:
 //	Option to choose triggering using sorted or unsorted patterns.
 //	Depressed 'Litho' or 'Imaging' button when that mode is in use.
+//	Normal setpoint reset to -5 V on Litho Crosspoint lock
 
 // Version 1.7:
 //	Array triggering with unsorted lines within each layer.
@@ -117,6 +123,8 @@ Function LithoTriggerDriver()
 	Variable/G gbgFunRate= bgFunRate // Higher this number - faster the background function runs
 	Variable sortOrder = NumVarOrDefault(":gsortOrder",1)
 	Variable/G gsortOrder= sortOrder
+	Variable/G gDriverIndex= 0
+	Variable/G gDriverSlope= NaN
 	
 	Variable/G gDummy = 0;
 	
@@ -152,6 +160,7 @@ Function LithoTriggerDriver()
 	Variable/G GrunMeter = 1
 
 	ARBackground("bgPosMonitor",gbgFunRate,"")
+	calcDriverSlope(-1)
 	
 	//Reset the datafolder to the root / previous folder
 	SetDataFolder dfSave
@@ -271,6 +280,7 @@ Function AutoTipPosCalib(ctrlname) : ButtonControl
 	NVAR GrunMeter, gBgFunRate
 	GRunMeter = 1
 	ARBackground("bgPosMonitor",gbgFunRate,"")
+	calcDriverSlope(-1)
 	SetDataFolder dfSave
 	
 	// Also calibrate position while we're at it
@@ -327,6 +337,7 @@ Function LockLithoXPT(ctrlname) : ButtonControl
 	
 	// This probably affects litho as well - just to be safe
 	MainSetVarFunc("IntegralGainSetVar_0",10,"10","MasterVariablesWave[%IntegralGain][%Value]")
+	MainSetpointSetVarFunc("SetPointSetVar_0",-5,"-5.000 V","MasterVariablesWave[%DeflectionSetpointVolts][%Value]");
 	
 	AutoTipPosCalib("") // in case I forget
 	
@@ -346,7 +357,7 @@ Function LockReadXPT(ctrlname) : ButtonControl
 	Button but_XPTReadlock, disable=2
 	Button but_XPTreset, disable=0
 	
-	MainSetVarFunc("SetpointSetVar_0",0.2,"0.2","MasterVariablesWave[%DeflectionSetpointVolts][%Value]")
+	MainSetVarFunc("SetpointSetVar_0",0.1,"0.1","MasterVariablesWave[%DeflectionSetpointVolts][%Value]")
 	MainSetVarFunc("IntegralGainSetVar_0",0.5,"0.5","MasterVariablesWave[%IntegralGain][%Value]")
 	
 End
@@ -372,20 +383,58 @@ Function WireXPT2(whichpopup,channel)
 
 End
 
+Function calcDriverSlope(mode)
+	Variable mode; 
+	// 0 -> call from LithoRamp only -> update index and slope
+	// else -> reset call -> reset index to 0 and calculate slope of first driver line
+
+	String dfSave = GetDataFolder(1)
+	SetDataFolder root:packages:SmartLitho:ArrayTrigger
+	
+	NVAR gDriverIndex, gDriverSlope
+	
+	if(mode == 0)
+		gDriverIndex = gDriverIndex + 3;
+	else
+		gDriverIndex = 0;
+	endif
+	
+	SetDataFolder root:packages:MFP3D:Litho
+	
+	Wave XLitho, YLitho
+	
+	if(DimSize(XLitho,0) <= gDriverIndex)
+		print "Error: Out of index in XLitho Wave for driver slope calculation"
+	else
+		gDriverSlope =(YLitho[gDriverIndex+1] - YLitho[gDriverIndex])/(XLitho[gDriverIndex+1] - XLitho[gDriverIndex])
+		if(abs(gDriverSlope) == 0)
+			gDriverSlope = 0;
+		elseif(abs(gDriverSlope) == inf)
+			gDriverSlope = inf;
+		endif
+
+	endif
+	
+	//print "Driver Index = " + num2str(gDriverIndex) + ", slope = " + num2str(gDriverSlope)
+		
+	SetDataFolder dfSave
+	
+End
+
 // This is where the code determines if the tip position corresponds to litho or normal for each cantilever
 Function bgPosMonitor()
 		
 	String dfSave = GetDataFolder(1)
 		
 	SetDataFolder root:packages:SmartLitho:ArrayTrigger
-	NVAR gXoffset, gYoffset, gXpos, gYpos, gRunMeter, gTolerance, gDoingLitho, gSortOrder, gDummy
+	NVAR gXoffset, gYoffset, gXpos, gYpos, gRunMeter, gTolerance, gDoingLitho, gSortOrder, gDummy, gDriverSlope
 	Wave gActive, gPrevIndex, gPrevIndex2, gCurrentIndex2
 
 	gXpos = (gXoffset + td_RV("Input.X")*GV("XLVDTSens"))* 1E+6
 	gYpos = (gYoffset + td_RV("Input.Y")*GV("YLVDTSens")) * 1E+6
 		
 	Variable i=0;
-	// Add in the main gDoingLitho check here
+	
 	if(!gDoingLitho)
 		for(i=0;i<5; i=i+1) 
 			gActive[i] = 0
@@ -411,6 +460,8 @@ Function bgPosMonitor()
 	
 	if(gSortOrder == 1) // Unsorted Patterns
 	
+		Variable SubSlope;
+	
 		gDummy = enoise(10);
 	
 		for(i=0;i<5; i=i+1) 
@@ -421,11 +472,22 @@ Function bgPosMonitor()
 			if(gPrevIndex[i] != -1)
 				// yes: check if tip is still within this line
 				hit = pointLineDist(Master_XLitho[gPrevIndex[i]],Master_YLitho[gPrevIndex[i]],Master_XLitho[gPrevIndex[i]+1],Master_YLitho[gPrevIndex[i]+1],gXpos*1e-6,gYpos*1e-6, gTolerance)
+				
+				SubSlope = (Master_YLitho[gPrevIndex[i]+1] - Master_YLitho[gPrevIndex[i]])/(Master_XLitho[gPrevIndex[i]+1] - Master_XLitho[gPrevIndex[i]])
+
+				if(abs(SubSlope) == 0)
+					SubSlope = 0;
+				elseif(abs(SubSlope) == inf)
+					SubSlope = inf;
+				endif
+
 				//print "looking within line (" + num2str(Master_XLitho[lineindex])+","+num2str(Master_YLitho[lineindex])+") - ("+num2str(Master_XLitho[lineindex+1])+","+num2str(Master_XLitho[lineindex+1])+"). Hit: " + num2str(hit)
-				if(hit ==1)
+				if(hit ==1 && SubSlope == gDriverSlope)
+
 					gActive[i] = 1;
 					////print "hit because of hit"
 					continue; // equivalent of saying move to next iteration
+	
 				endif
 				//print "no hit after hit"
 				// Not a hit:
@@ -441,11 +503,25 @@ Function bgPosMonitor()
 				do	
 					// 1. Check if hit:
 					hit = pointLineDist(Master_XLitho[j],Master_YLitho[j],Master_XLitho[j+1],Master_YLitho[j+1],gXpos*1e-6,gYpos*1e-6, gTolerance)
-					if(hit==1)
-						//print "line " + num2str(j) +" was a hit!"
+					
+					SubSlope = (Master_YLitho[j+1] - Master_YLitho[j])/(Master_XLitho[j+1] - Master_XLitho[j])
+
+					if(abs(SubSlope) == 0)
+						SubSlope = 0;
+					elseif(abs(SubSlope) == inf)
+						SubSlope = inf;
+					endif
+					
+					//print "        Driver = " + num2str(gDriverSlope) + ", Sub = " + num2str(SubSlope)
+					
+					if(hit==1 && SubSlope == gDriverSlope)
+
 						gActive[i] = 1;
 						gPrevIndex[i] =j;
+						//print "line " + num2str(j) +" was a hit!"
+						
 						break; // break this while loop only equivalent of saying move to next cantilever;
+						
 					endif
 					//print "line " + num2str(j) +" was not a hit. Moving to next line"
 					// 2. If not. move forward to next line
@@ -590,6 +666,7 @@ Function TipPosCalibDriver(ctrlname) : ButtonControl
 	
 	Variable/G GrunMeter = 1
 	ARBackground("bgPosMonitor",gbgFunRate,"")
+	calcDriverSlope(-1)
 
 	// Create the control panel.
 	Execute "TipPosCalibPanel()"
