@@ -2,15 +2,24 @@
 
 // Version History:
 
+//>> Possible Error in AFM3 Lithography code - the wave reset is called at a wrong time.
+
+// Version 1.4:
+//	From this version on, this code has to be tied with the SmartLitho code for the different layers.
+//	It can be made to compile without the SmartLitho but cannot run without it because of wave references
+//	Goes through the five layers in the SmartLitho folder and searches through them now.
+//	Corrected the 'not-yet-found-my-line' algorithm
+
+// Upcoming changes:
+// 	Writing the binary information to the Channels in the bg function
+//	Get rid of annoying Wave referencing error
+
 // Version 1.3
 // 	Completed main UI with 5 LEDs
 //	Added separate manual tip position calibration UI
 //	Implemented the single second lookup algorithm
 // 	Setting up the crosspoint panel setup for OutA, OutB
 // 	Start of litho resets the secondChance and CurrentIndex waves.
-
-// Upcoming changes:
-// 	Writing the binary information to the Channels in the bg function
 
 // Version 1.2
 //	Lithography.ipf -> master writing bit / variable (instead of BNC outputs)
@@ -24,8 +33,10 @@
 // 	displays the x and y position of the tip using a background function
 
 Menu "Macros"
-	"Lithography Position Triggerer", LithoTriggerDriver()
-	"Tip Position Calibration", TipPosCalibDriver()
+	SubMenu "UIUC Lithography"
+		"Array Litho Trigger", LithoTriggerDriver()
+		"Tip Position Calibration", TipPosCalibDriver()
+	End
 End
 
 Function LithoTriggerDriver()
@@ -67,13 +78,16 @@ Function LithoTriggerDriver()
 		Make/O/N=5 gCurrentIndex
 	endif	
 	
-	// Only one second second lookup (change in current index)
-	// may be allowed. This should be reset after the line the cantilever
-	// was looking for was found.
-	//Must be reset at start of litho
-	if(!exists("gSecondLookup"))
-		Make/O/N=5 gSecondLookup
+	// Similar to gCurrent Index but instead it keeps track 
+	// of the last line with a hit.
+	// Must be reset to -1 for all cantilevers on Litho start
+	if(!exists("gPrevIndex"))
+		Make/O/N=5 gPrevIndex
 	endif
+	Variable i=0
+	for(i=0; i<5;i+=1)
+		gPrevIndex[i] = -1;
+	endfor
 	
 	// Calibrate tip position here.
 	if(gPosCalibrated == 0)
@@ -92,6 +106,7 @@ Function LithoTriggerDriver()
 	SetDataFolder dfSave
 
 	// Create the control panel.
+	// missing reference to wave thrown somewhere here.
 	Execute "LithoTriggerPanel()"
 End
 
@@ -110,9 +125,13 @@ End
 Function resetLithoSetup()
 	String dfSave = GetDataFolder(1)
 	SetDataFolder root:packages:SmartLitho:ArrayTrigger
-	Wave gSecondLookup, gCurrentIndex
-	Redimension /N=(0) gSecondLookup, gCurrentIndex
-	Redimension /N=(5) gSecondLookup, gCurrentIndex
+	Wave gPrevIndex, gCurrentIndex
+	Redimension /N=(0) gCurrentIndex
+	Redimension /N=(5) gCurrentIndex
+	Variable i=0
+	for(i=0; i<5;i+=1)
+		gPrevIndex[i] = -1;
+	endfor
 	SetDataFolder dfSave
 	
 	// Rewire XPT for OutA, OutB
@@ -197,53 +216,69 @@ Function bgPosMonitor()
 		
 	SetDataFolder root:packages:SmartLitho:ArrayTrigger
 	NVAR gXoffset, gYoffset, gXpos, gYpos, gRunMeter, gTolerance, gDoingLitho
-	Wave gActive, gCurrentIndex, gSecondLookup
+	Wave gActive, gCurrentIndex, gPrevIndex
 
 	gXpos = (gXoffset + td_RV("Input.X")*GV("XLVDTSens"))* 1E+6
 	gYpos = (gYoffset + td_RV("Input.Y")*GV("YLVDTSens")) * 1E+6
-	
-	SetDataFolder root:packages:MFP3D:Litho
-	Wave XLitho, YLitho
-	
+		
 	Variable i=0;
-	
-	
 	// Add in the main gDoingLitho check here
 	if(!gDoingLitho)
 		for(i=0;i<5; i=i+1) 
 			gActive[i] = 0
 		endfor
+		SetDataFolder dfSave	
 		return !gRunMeter	
 	endif
 	
+	SetDataFolder root:packages:SmartLitho
+	Wave layers, Master_XLitho, Master_YLitho
+	NVAR gLayerNum
 	
-	for(i=0;i<1; i=i+1) // change to 5 later
-		Variable lineindex = gCurrentIndex[i]
-		Variable hit = pointLineDist(XLitho[lineindex],YLitho[lineindex],XLitho[lineindex+1],YLitho[lineindex+1],gXpos*1e-6,gYpos*1e-6, gTolerance)
+	if(gLayerNum < 5)
+		print "Error: Less than 5 layers found for Array Lithography. Aborting"
+		SetDataFolder dfSave	
+		return gRunMeter	
+	endif
+	
+	// Assuming that the single cantilever layers are 1-5
+	// Master layer (only one shown) is layer #6 or greater
+	for(i=0;i<5; i=i+1) // Start with single cantilever for now. Replace with 5.
+		// 1. Look up the start of the particular layer
+		Variable layerstartindex = Layers[i][1];
+		
+		// 2. find the line using the stored indices as an offset to the start position of the layer
+		Variable lineindex = gCurrentIndex[i] + layerstartindex
+		
+		// 3. Find out if it was a hit by looking up the coordinates in the Master Litho waves:
+		Variable hit = pointLineDist(Master_XLitho[lineindex],Master_YLitho[lineindex],Master_XLitho[lineindex+1],Master_YLitho[lineindex+1],gXpos*1e-6,gYpos*1e-6, gTolerance)
+		//print "looking within line (" + num2str(Master_XLitho[lineindex])+","+num2str(Master_YLitho[lineindex])+") - ("+num2str(Master_XLitho[lineindex+1])+","+num2str(Master_XLitho[lineindex+1])+"). Hit: " + num2str(hit)
+		
 		if(hit==1)
 			gActive[i] = 1
-			gSecondLookup[i]=0
+			gPrevIndex[i]=gCurrentIndex[i]
 			// no changes to gCurrentIndex
 		else
-			if(gSecondLookup[i] == 1)
+			if(gPrevIndex[i] != gCurrentIndex[i])
+				// Searching for new line (current index) but still did not find it
+				// Don't look for the line after that. Just try again, next cycle.
 				gActive[i] = 0
-				return !gRunMeter	
-			endif
-			//print "is not on line"
-			// Look in next line
-			if(numtype(XLitho[lineindex+2]) != 0)// End of this segment
-				gCurrentIndex[i] = gCurrentIndex[i] + 3
-			else // Next line starting from same end point as prev
-				gCurrentIndex[i] = gCurrentIndex[i] + 2
-			endif
-			lineindex = gCurrentIndex[i]
-			hit = pointLineDist(XLitho[lineindex],YLitho[lineindex],XLitho[lineindex+1],YLitho[lineindex+1],gXpos*1e-6,gYpos*1e-6, gTolerance)
-			if(hit==1)
-				gActive[i] = 1
-				gSecondLookup[i]=0
+				//return !gRunMeter	
 			else
-				gActive[i] = 0
-				gSecondLookup[i] = 1
+				// Look in next line
+				if(numtype(Master_XLitho[lineindex+2]) != 0)// End of this segment
+					gCurrentIndex[i] = gCurrentIndex[i] + 3
+				else // Next line starting from same end point as prev
+					gCurrentIndex[i] = gCurrentIndex[i] + 2
+				endif
+				lineindex = gCurrentIndex[i] + layerstartindex
+				hit = pointLineDist(Master_XLitho[lineindex],Master_YLitho[lineindex],Master_XLitho[lineindex+1],Master_YLitho[lineindex+1],gXpos*1e-6,gYpos*1e-6, gTolerance)
+				if(hit==1)
+					gActive[i] = 1
+					gPrevIndex[i]=gCurrentIndex[i]
+				else
+					gActive[i] = 0
+				endif
 			endif
 		endif
 	endfor
