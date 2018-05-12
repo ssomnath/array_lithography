@@ -1,8 +1,4 @@
-#if NumberByKey("IGORVERS",IgorInfo(0),":",";",0) >= 6.13
-#pragma rtGlobals=3        // Use strict wave reference mode
-#else
-#pragma rtGlobals=1        // Use modern global access method.
-#endif
+#pragma rtGlobals=1		// Use modern global access method.
 #pragma IgorVersion=5.00				//WaveStats/M=1
 #pragma ModuleName=Lithography
 
@@ -96,6 +92,7 @@ Function MakeLithoStepPanel(Var)		//make the litho panel
 	
 	Variable FirstSetVar = PanelParms[%FirstSetVar][0]
 	Variable SetVarWidth = PanelParms[%SetVarWidth][0]
+	Variable FirstText = PanelParms[%FirstText][0]
 	Variable TextWidth = PanelParms[%TextWidth][0]
 	Variable TitleWidth = PanelParms[%TitleWidth][0]
 	Variable HelpPos = PanelParms[%HelpPos][0]
@@ -105,7 +102,6 @@ Function MakeLithoStepPanel(Var)		//make the litho panel
 	Variable BodyWidth = PanelParms[%BodyWidth][0]
 	String HelpFuncStr = "ARHelpFunc"
 	Variable StepSize = 25
-	Variable Margin = 15
 	
 	Variable FontSize = 14
 	Struct ARImagingModeStruct ImagingModeParms
@@ -179,9 +175,9 @@ Function MakeLithoStepPanel(Var)		//make the litho panel
 	bit += 1
 
 	if (2^bit & Control1Bit)
-		MakeSetVar(GraphStr,"","LithoTimeStart","Initial Dwell","LithoStepSetVarFunc","",FirstSetVar,CurrentTop,SetVarWidth,bodyWidth,TabNum,FontSize,Enab)
+		MakeSetVar(GraphStr,"","LithoTimeStart","Time Start","LithoStepSetVarFunc","",FirstSetVar,CurrentTop,SetVarWidth,bodyWidth,TabNum,FontSize,Enab)
 
-		MakeButton(GraphStr,"Initial_Dwell"+TabStr,"?",15,15,HelpPos,CurrentTop+1,HelpFuncStr,DisableHelp)
+		MakeButton(GraphStr,"LithoTimeStart"+TabStr,"?",15,15,HelpPos,CurrentTop+1,HelpFuncStr,DisableHelp)
 		
 		UpdateCheckBox(GraphStr,"LithoStepBit_"+num2str(bit)+SetUpTabStr,"Show?",SetupLeft,CurrentTop,"NoShowFunc",(2^bit & oldControl1Bit),0,Enab)
 		CurrentTop += StepSize
@@ -189,9 +185,9 @@ Function MakeLithoStepPanel(Var)		//make the litho panel
 	bit += 1
 
 	if (2^bit & Control1Bit)
-		MakeSetVar(GraphStr,"","LithoTimeStep","Dwell Increment","LithoStepSetVarFunc","",FirstSetVar,CurrentTop,SetVarWidth,bodyWidth,TabNum,FontSize,Enab)
+		MakeSetVar(GraphStr,"","LithoTimeStep","Time Step","LithoStepSetVarFunc","",FirstSetVar,CurrentTop,SetVarWidth,bodyWidth,TabNum,FontSize,Enab)
 
-		MakeButton(GraphStr,"Dwell_Increment"+TabStr,"?",15,15,HelpPos,CurrentTop+1,HelpFuncStr,DisableHelp)
+		MakeButton(GraphStr,"LithoTimeStep"+TabStr,"?",15,15,HelpPos,CurrentTop+1,HelpFuncStr,DisableHelp)
 		
 		UpdateCheckBox(GraphStr,"LithoStepBit_"+num2str(bit)+SetUpTabStr,"Show?",SetupLeft,CurrentTop,"NoShowFunc",(2^bit & oldControl1Bit),0,Enab)
 		CurrentTop += StepSize
@@ -199,7 +195,7 @@ Function MakeLithoStepPanel(Var)		//make the litho panel
 	bit += 1
 
 	if (2^bit & Control1Bit)
-		MakeButton(GraphStr,"UpdateTime"+TabStr,"Update Time",100,20,FirstSetVar+20-120,CurrentTop,"LithoStepFunc",Enab)
+		MakeButton(GraphStr,"UpdateTime"+TabStr,"Update Time",100,20,FirstText,CurrentTop,"LithoStepFunc",Enab)
 		MakeButton(GraphStr,"EditTime"+TabStr,"Edit Time",100,20,FirstSetVar+20,CurrentTop,"LithoStepFunc",Enab)
 		
 		MakeButton(GraphStr,"Update_Time"+TabStr,"?",15,15,HelpPos,CurrentTop+1,HelpFuncStr,DisableHelp)
@@ -254,9 +250,9 @@ Function MakeLithoStepPanel(Var)		//make the litho panel
 
 	if (2^bit & Control1Bit)
 
-		MakeSetVar(GraphStr,"","LithoStartVolts","Initial Voltage","LithoStepSetVarFunc","",FirstSetVar,CurrentTop,SetVarWidth,bodyWidth,TabNum,FontSize,Enab)
+		MakeSetVar(GraphStr,"","LithoStartVolts","Volt Start","LithoStepSetVarFunc","",FirstSetVar,CurrentTop,SetVarWidth,bodyWidth,TabNum,FontSize,Enab)
 
-		MakeButton(GraphStr,"Initial_Voltage"+TabStr,"?",15,15,HelpPos,CurrentTop+1,HelpFuncStr,DisableHelp)
+		MakeButton(GraphStr,"LithoStartVolts"+TabStr,"?",15,15,HelpPos,CurrentTop+1,HelpFuncStr,DisableHelp)
 		
 		UpdateCheckBox(GraphStr,"LithoStepBit_"+num2str(bit)+SetUpTabStr,"Show?",SetupLeft,CurrentTop,"NoShowFunc",(2^bit & oldControl1Bit),0,Enab)
 		CurrentTop += StepSize
@@ -264,9 +260,9 @@ Function MakeLithoStepPanel(Var)		//make the litho panel
 	bit += 1
 
 	if (2^bit & Control1Bit)
-		MakeSetVar(GraphStr,"","LithoEndVolts","End Voltage","LithoStepSetVarFunc","",FirstSetVar,CurrentTop,SetVarWidth,bodyWidth,TabNum,FontSize,Enab)
+		MakeSetVar(GraphStr,"","LithoEndVolts","Volt End","LithoStepSetVarFunc","",FirstSetVar,CurrentTop,SetVarWidth,bodyWidth,TabNum,FontSize,Enab)
 
-		MakeButton(GraphStr,"End_Voltage"+TabStr,"?",15,15,HelpPos,CurrentTop+1,HelpFuncStr,DisableHelp)
+		MakeButton(GraphStr,"LithoEndVolts"+TabStr,"?",15,15,HelpPos,CurrentTop+1,HelpFuncStr,DisableHelp)
 		
 		UpdateCheckBox(GraphStr,"LithoStepBit_"+num2str(bit)+SetUpTabStr,"Show?",SetupLeft,CurrentTop,"NoShowFunc",(2^bit & oldControl1Bit),0,Enab)
 		CurrentTop += StepSize
@@ -274,7 +270,7 @@ Function MakeLithoStepPanel(Var)		//make the litho panel
 	bit += 1
 
 	if (2^bit & Control1Bit)
-		MakeButton(GraphStr,"UpdateVolts"+TabStr,"Update Volts",100,20,FirstSetVar+20-120,CurrentTop,"LithoStepFunc",Enab)
+		MakeButton(GraphStr,"UpdateVolts"+TabStr,"Update Volts",100,20,FirstText,CurrentTop,"LithoStepFunc",Enab)
 		MakeButton(GraphStr,"EditVolts"+TabStr,"Edit Volts",100,20,FirstSetVar+20,CurrentTop,"LithoStepFunc",Enab)
 		
 		MakeButton(GraphStr,"Update_Volts"+TabStr,"?",15,15,HelpPos,CurrentTop+1,HelpFuncStr,DisableHelp)
@@ -285,7 +281,7 @@ Function MakeLithoStepPanel(Var)		//make the litho panel
 	bit += 1
 
 	if (2^bit & Control1Bit)
-		MakeButton(GraphStr,"AppendGrid"+TabStr,"Append Grid",100,20,FirstSetVar+20-120,CurrentTop,"LithoStepFunc",Enab)
+		MakeButton(GraphStr,"AppendGrid"+TabStr,"Append Grid",100,20,FirstText,CurrentTop,"LithoStepFunc",Enab)
 		MakeButton(GraphStr,"RemoveGrid"+TabStr,"Remove Grid",100,20,FirstSetVar+20,CurrentTop,"LithoStepFunc",Enab)
 		
 		MakeButton(GraphStr,"Append_Grid"+TabStr,"?",15,15,HelpPos,CurrentTop+1,HelpFuncStr,DisableHelp)
@@ -296,8 +292,8 @@ Function MakeLithoStepPanel(Var)		//make the litho panel
 	bit += 1
 
 	if (2^bit & Control1Bit)
-		MakeButton(GraphStr,"DoStepLitho"+TabStr,"Do It",80,20,(HelpPos-Margin)/2-40,CurrentTop,"LithoStepFunc",Enab)
-		MakeButton(GraphStr,"StopStepLitho"+TabStr,"Stop",80,20,(HelpPos-Margin)/2-40,CurrentTop,"LithoStepFunc",Enab)
+		MakeButton(GraphStr,"DoStepLitho"+TabStr,"Do It",80,20,(HelpPos-FirstText)/2-40,CurrentTop,"LithoStepFunc",Enab)
+		MakeButton(GraphStr,"StopStepLitho"+TabStr,"Stop",80,20,(HelpPos-FirstText)/2-40,CurrentTop,"LithoStepFunc",Enab)
 		
 		MakeButton(GraphStr,"Do_Step_Litho"+TabStr,"?",15,15,HelpPos,CurrentTop+1,HelpFuncStr,DisableHelp)
 		
@@ -308,7 +304,7 @@ Function MakeLithoStepPanel(Var)		//make the litho panel
 
 
 	if (2^bit & Control1Bit)
-		MakeButton(GraphStr,MakeName,MakeTitle,180,20,(HelpPos-Margin)/2-90,CurrentTop,"MakePanelProc",Enab)
+		MakeButton(GraphStr,MakeName,MakeTitle,180,20,(HelpPos-FirstText)/2-90,CurrentTop,"MakePanelProc",Enab)
 	
 		MakeButton(GraphStr,"Make_Other_Litho_Step_Panel"+TabStr,"?",15,15,HelpPos,CurrentTop+1,HelpFuncStr,DisableHelp)
 		
@@ -318,7 +314,7 @@ Function MakeLithoStepPanel(Var)		//make the litho panel
 	bit += 1
 
 
-	MakeButton(GraphStr,SetupName,"Setup",80,20,(HelpPos-Margin)/2-40,CurrentTop,SetupFunc,Enab)
+	MakeButton(GraphStr,SetupName,"Setup",80,20,(HelpPos-FirstText)/2-40,CurrentTop,SetupFunc,Enab)
 	MakeButton(GraphStr,"Litho_Step_Setup"+TabStr,"?",15,15,HelpPos,CurrentTop+1,HelpFuncStr,DisableHelp)
 	
 	CurrentTop += StepSize
@@ -922,29 +918,6 @@ Function LithoStepRamp(LithoCount)		//this function moves between litho segments
 	return(0)
 End //LithoStepRamp
 
-// Added by Suhas
-// This section was being repeated over and over again.
-// This will allow the Lithography.ipf to remain neat with the least
-// of my code in it.
-// This will automatically check if some heating function should or not execute
-Function LithoInterfacer(message, mode)
-	String message
-	Variable mode
-	
-	if(mode == 0)// For Thermal Lithography (single cantilever)
-		DoWindow/F ThermalLithoPanel
-		if(V_flag != 0)
-			execute(message)
-		endif
-	elseif(mode == 1)// For array Lithography Trigger panel
-		DoWindow/F LithoTriggerPanel
-		if(V_flag != 0)
-			execute(message)
-		endif
-	endif
-	
-End
-
 
 Function DoLithoFunc(ctrlName)			//the litho function
 	String ctrlName			//used!
@@ -971,6 +944,9 @@ Function DoLithoFunc(ctrlName)			//the litho function
 			// We want the cantilever to be cooled now.
 			LithoInterfacer("StopPID()",0)
 			LithoInterfacer("performingLitho(0)",1)
+			LithoInterfacer("calcDriverSlope(-1)",1)
+			// Basic litho trigger:
+			td_wv("Output.C",-5.04)
 			//End of Modification by Suhas
 			
 			return 0
@@ -981,10 +957,11 @@ Function DoLithoFunc(ctrlName)			//the litho function
 			//really just go on to the rest of the function....
 	endswitch
 	
-	//Start of Modification by Suhas
-	// It appears that this will be called when litho starts:
-	LithoInterfacer("resetLithoSetup()",1)
-	// End of modification by Suhas
+	// Start of modified code by Suhas
+	// Access trigger at BNCOut2 not BNCOut0
+	Execute("root:Packages:MFP3D:XPT:Originals:DCLitho[12] = \"OutC\"")
+	Execute("root:Packages:MFP3D:XPT:Litho[12] = \"OutC\"")
+	// End of modified code by Suhas
 	
 	
 //print td_ReadValue("ZSensor")*-GV("ZLVDTSens"),GetFuncName()
@@ -1053,6 +1030,11 @@ Function DoLithoFunc(ctrlName)			//the litho function
 //	ErrorStr += num2str(ir_WriteValue("Output.A",0))+","		//*alias* //checkme
 	LoadXPTState("Litho")
 	String EventStr = "1"
+	
+	// Start Modification by Suhas
+	LithoInterfacer("performingLitho(0)",1)
+	LithoInterfacer("resetLithoSetup()",1)
+	// End Modification by Suhas
 	
 	
 	Struct ARFeedbackstruct FB
@@ -1163,13 +1145,35 @@ Function DoLithoFunc(ctrlName)			//the litho function
 	// Start of Modification by Suhas
 	// Assuming that the Litho is completed by now
 	// We want the cantilever to be cooled now.
-	LithoInterfacer("StopPID()",0)
-	LithoInterfacer("performingLitho(0)",1)
+	//print "I am called just when litho starts for some wierd reason!"
+	//LithoInterfacer("StopPID()",0)
 	//End of Modification by Suhas
 
 	return(0)
 End //DoLithoFunc
 
+// Added by Suhas
+// This section was being repeated over and over again.
+// This will allow the Lithography.ipf to remain neat with the least
+// of my code in it.
+// This will automatically check if some heating function should or not execute
+Function LithoInterfacer(message, mode)
+	String message
+	Variable mode
+	
+	if(mode == 0)// For Thermal Lithography (single cantilever)
+		DoWindow/F ThermalLithoPanel
+		if(V_flag != 0)
+			execute(message)
+		endif
+	elseif(mode == 1)// For array Lithography Trigger panel
+		DoWindow/F LithoTriggerPanel
+		if(V_flag != 0)
+			execute(message)
+		endif
+	endif
+	
+End
 
 Function LithoBackground()
 	
@@ -1267,6 +1271,15 @@ Function ActualLitho(LithoCount)			//this does the actual lithography
 	// Modificaiton started here by Suhas
 	LithoInterfacer("SetHeat(1);PIDPanelButtonFunc(\"Read\",5)",0)
 	LithoInterfacer("performingLitho(1)",1)
+	td_wv("Output.C",5.16)
+	
+	// Single cant - MFP Feedback code:
+	if(DataFolderExists("root:packages:MFPTCLitho"))
+		//Not simply calling the command because it should be able to compile even
+		// without the macro being compiled.
+		// Better to have a runtime error than a constant compilation error
+		execute("SetHeat(1)")
+	endif
 	// End of modification of code by Suhas
 	
 //print td_ReadValue("ZSensor")*-GV("ZLVDTSens"),GetFuncName()
@@ -1295,7 +1308,7 @@ Function ActualLitho(LithoCount)			//this does the actual lithography
 	Variable TriggeredSnap = GV("LithoTrigSnap")
 	SleepTime *= (!(!imagingMode))+1 		//it was ImagingMode+1 before we added PFM and other modes.
 
-	Wave YLitho, XLitho, LithoVolts
+	Wave YLitho, XLitho//, LithoVolts
 	Wave/C AngleWave
 	String NoteStr = Note(YLitho)
 	String InterpList = StringByKey("InterpList",NoteStr,":","\r")
@@ -1497,8 +1510,17 @@ Function LithoRamp(LithoCount)		//this function moves between litho segments
 	// Start of modification by Suhas
 	LithoInterfacer("SetHeat(0)",0)
 	LithoInterfacer("performingLitho(0)",1)
+	LithoInterfacer("calcDriverSlope(0)",1)
+	td_wv("Output.C",-5.04)
+	
+	// Single cant - MFP Feedback code:
+	if(DataFolderExists("root:packages:MFPTCLitho"))
+		//Not simply calling the command because it should be able to compile even
+		// without the macro being compiled.
+		// Better to have a runtime error than a compilation error
+		execute("SetHeat(0)")
+	endif
 	// End of modification by Suhas
-
 
 //print td_ReadValue("ZSensor")*-GV("ZLVDTSens"),GetFuncName()
 	String DataFolder = GetDF("Litho")
@@ -3027,7 +3049,7 @@ Function MakeLithoGroupPanel(var)
 		MakeSetVar(GraphStr,"","LithoSize","Size","LithoGroupSetVarFunc","",SecondButton+40,CurrentTop,SetVarwidth,bodyWidth,TabNum,FontSize,Enab)
 	
 		ControlName = "LithoSizeSlider"+TabStr
-		Slider $ControlName,win=$GraphStr,pos={SecondButton+4,CurrentTop+25},size={SliderWidth,47},limits={1e-9,GV("LithoScanSize"),0},value=GV("LithoScanSize"),vert=0,ticks=0
+		Slider $ControlName,win=$GraphStr,pos={SecondButton,CurrentTop+25},size={SliderWidth,47},limits={1e-9,GV("LithoScanSize"),0},value=GV("LithoScanSize"),vert=0
 		Slider $ControlName,win=$GraphStr,proc=LithoSliderFunc,thumbColor=(Red,Green,Min(Blue,65279))		//Variable=root:Packages:MFP3D:Main:Variables:LithoVariablesWave[%LithoSize]
 		
 
@@ -3046,7 +3068,7 @@ Function MakeLithoGroupPanel(var)
 		//make the slider first so that the SetVar will showup on top of it.
 	
 		ControlName = "LithoYOffsetSlider"+TabStr
-		Slider $ControlName,win=$GraphStr,pos={SecondHelpPos-28,CurrentTop-25},size={20,SliderWidth-20},limits={GVL("LithoYOffset"),GVH("LithoYOffset"),0},value=GV("LithoYOffset"),vert=1,ticks=0
+		Slider $ControlName,win=$GraphStr,pos={SecondButton+80,CurrentTop-25},size={20,SliderWidth-20},limits={GVL("LithoYOffset"),GVH("LithoYOffset"),0},value=GV("LithoYOffset"),vert=1
 		Slider $ControlName,win=$GraphStr,proc=LithoSliderFunc,side=2,thumbColor=(Red,Green,Min(Blue,65279))	//Variable=root:Packages:MFP3D:Main:Variables:LithoVariablesWave[%LithoSize]
 		
 		
@@ -3093,7 +3115,7 @@ Function MakeLithoGroupPanel(var)
 		MakeSetVar(GraphStr,"","LithoXOffset","X Offset","LithoGroupSetVarFunc","",SecondButton+50,CurrentTop,SetVarWidth,bodyWidth,TabNum,FontSize,Enab)
 	
 		ControlName = "LithoXOffsetSlider"+TabStr
-		Slider $ControlName,win=$GraphStr,pos={SecondButton,CurrentTop+35},size={SliderWidth,20},limits={GVL("LithoXOffset"),GVH("LithoXOffset"),0},value=GV("LithoXOffset"),vert=0,ticks=0
+		Slider $ControlName,win=$GraphStr,pos={SecondButton,CurrentTop+35},size={SliderWidth,20},limits={GVL("LithoXOffset"),GVH("LithoXOffset"),0},value=GV("LithoXOffset"),vert=0
 		Slider $ControlName,win=$GraphStr,proc=LithoSliderFunc,thumbColor=(Red,Green,Min(Blue,65279))		//Variable=root:Packages:MFP3D:Main:Variables:LithoVariablesWave[%LithoXOffset]
 
 		MakeButton(GraphStr,"Litho_X_Offset"+TabStr,"?",15,15,SecondHelpPos,CurrentTop+1,HelpFuncStr,DisableHelp)
@@ -3114,7 +3136,7 @@ Function MakeLithoGroupPanel(var)
 		ControlName = "AppendGroup"+TabStr
 		MakeButton(GraphStr,ControlName,"Add Group",ButtonWidth,20,FirstButton,CurrentTop,"LithoGroupButtonFunc",0)
 		
-		MakeButton(GraphStr,"Add_Group"+TabStr,"?",15,15,FirstHelpPos,CurrentTop+1,HelpFuncStr,DisableHelp)
+		MakeButton(GraphStr,"Append_Group"+TabStr,"?",15,15,FirstHelpPos,CurrentTop+1,HelpFuncStr,DisableHelp)
 		
 		UpdateCheckBox(GraphStr,"LithoGroupBit_"+num2str(bit)+SetupTabStr,"Show?",FirstSetupPos,CurrentTop,"NoShowFunc",(2^bit & oldControl1Bit),0,Enab)
 		DidCol = 1
@@ -3181,7 +3203,7 @@ Function MakeLithoGroupPanel(var)
 		MakeSetVar(GraphStr,"","LithoAngle","Rotation","LithoGroupSetVarFunc","",SecondButton+50,CurrentTop,SetVarWidth,bodyWidth,TabNum,FontSize,Enab)
 
 		ControlName = "LithoAngleSlider"+TabStr
-		Slider $ControlName,win=$GraphStr,pos={SecondButton,CurrentTop+30},size={SliderWidth,20},limits={GVL("LithoAngle"),GVH("LithoAngle"),0},value=GV("LithoAngle"),vert=0,ticks=0
+		Slider $ControlName,win=$GraphStr,pos={SecondButton,CurrentTop+20},size={SliderWidth,20},limits={GVL("LithoAngle"),GVH("LithoAngle"),0},value=GV("LithoAngle"),vert=0
 		Slider $ControlName,win=$GraphStr,proc=LithoSliderFunc,thumbColor=(Red,Green,Min(Blue,65279))		//Variable=root:Packages:MFP3D:Main:Variables:LithoVariablesWave[%LithoXOffset]
 
 		MakeButton(GraphStr,"Litho_Angle"+TabStr,"?",15,15,SecondHelpPos,CurrentTop+1,HelpFuncStr,DisableHelp)
@@ -3850,12 +3872,11 @@ Function SetAngle(newValue)		//this increments the size gain from its old value 
 	if (GV("ScanStatus") == 0)				//if either of these buttons are there then we are not scanning
 		return 0							//so we don't actually have to change the size gain
 	endif
-	PV("ARSysScanBusy",1)
-	GhostMainPanel()
-	//SetDisable(2)
+	
+	SetDisable(2)
 	String ErrorStr = ""
 	
-	ErrorStr += num2str(td_SetRamp(5,"ScanEngine.cos",0,cos(newValue*pi/180),"ScanEngine.sin",0,sin(newValue*pi/180),"",0,0,"PV(\"ARSysScanBusy\",0);GhostMainPanel();"))+","
+	ErrorStr += num2str(td_SetRamp(5,"ScanEngine.cos",0,cos(newValue*pi/180),"ScanEngine.sin",0,sin(newValue*pi/180),"",0,0,"SetDisable(0)"))+","
 	RealScanParmFunc("ScanAngle;","Copy")
 	
 	ARReportError(ErrorStr)
@@ -3872,15 +3893,13 @@ Function SetSizeGain(newValue)		//this increments the size gain from its old val
 	endif
 	
 	UpdateSpotZero()
-	PV("ARSysScanBusy",1)
-	GhostMainPanel()
-	//SetDisable(2)
+	SetDisable(2)
 	String ErrorStr = ""
 	
 	if (GV("ScanMode") == 0)
-		ErrorStr += num2str(td_SetRamp(5,"ScanEngine.XGain",0,newValue/abs(GV("XLVDTSens"))/(.8*20),"ScanEngine.YGain",0,newValue/abs(GV("YLVDTSens"))/(.8*20),"",0,0,"PV(\"ARSysScanBusy\",0);GhostMainPanel();"))+","
+		ErrorStr += num2str(td_SetRamp(5,"ScanEngine.XGain",0,newValue/abs(GV("XLVDTSens"))/(.8*20),"ScanEngine.YGain",0,newValue/abs(GV("YLVDTSens"))/(.8*20),"",0,0,"SetDisable(0)"))+","
 	else
-		ErrorStr += num2str(td_SetRamp(5,"ScanEngine.XGain",0,newValue/GV("XPiezoSens")/(.8*160),"ScanEngine.YGain",0,newValue/GV("YPiezoSens")/(.8*160),"",0,0,"PV(\"ARSysScanBusy\",0);GhostMainPanel();")	)+","
+		ErrorStr += num2str(td_SetRamp(5,"ScanEngine.XGain",0,newValue/GV("XPiezoSens")/(.8*160),"ScanEngine.YGain",0,newValue/GV("YPiezoSens")/(.8*160),"",0,0,"SetDisable(0)")	)+","
 	endif
 	RealScanParmFunc("ScanSize;FastScanSize;SlowScanSize;","Copy")
 	
@@ -3895,15 +3914,8 @@ Function SetOffset(which,newX,newY)		//this increments the offset from its old v
 	if (GV("ScanStatus") == 0)				//if either of these buttons are there then we are not scanning
 		return 0							//so we don't actually have to change the offset
 	endif
-	if (GV("ARSysScanBusy"))
-		ARDoAlert("must finish the current offset first",-1,0)
-		return(0)
-	endif
 	
-	PV("ARSysScanBusy",1)
-	GhostMainPanel()
-	//SetDisable(2)
-
+	SetDisable(2)
 	String xChanStr = "", yChanStr = ""
 	Variable xLVDTSens = 1, yLVDTSens = 1, xPiezoSens = 1, yPiezoSens = 1
 	Variable oldX = 0, oldY = 0, i, increment, withdraw
@@ -3968,10 +3980,7 @@ End //SetOffset
 Function FinishSetOffset(Withdraw)
 	Variable Withdraw		
 
-	PV("ARSysScanBusy",0)
-	GhostMainPanel()
-	//SetDisable(0)
-
+	SetDisable(0)
 	String ErrorStr = ""
 	if (Withdraw)
 		ErrorStr += num2str(td_writestring("CTFC.EventEnable","Never"))+","		//just to be sure.
@@ -3980,7 +3989,7 @@ Function FinishSetOffset(Withdraw)
 		ErrorStr += InitZFeedback(ImagingModeParms)
 		ErrorStr += num2str(td_WriteString("Event.10","Clear"))+","		//this is set by the CTFC, so clear it.
 	endif
-	RealScanParmFunc("XOffset;YOffset;","Copy")
+
 	ARReportError(ErrorStr)
 
 End //FinishSetOffset
@@ -4026,10 +4035,6 @@ Function RealScanParmFunc(ParmList,Action)
 	if (DimSize(RVW,0) != ItemsInList(DimLabels,";"))
 		Redimension/N=(ItemsInList(DimLabels,";"),-1) RVW
 		SetDimLabels(RVW,DimLabels,0)
-	endif
-	if (DimSize(RVD,0) != ItemsInList(DimLabels,";"))
-		Redimension/N=(ItemsInList(DimLabels,";"),-1) RVD
-		SetDimLabels(RVD,DimLabels,0)
 	endif
 	
 	
@@ -5860,7 +5865,6 @@ Static Function CleanGDSdir()						//this function is in the GDS text version.
 		Jbar(JHand,i,1,0.01)
 		KillStrings/Z $StringFromList(i,Slist,";")
 	endfor
-	Wave/Z GDSUnitWave, GDSLayerWave, GDSLayerData
 	KillWaves/Z GDSUnitWave, GDSLayerWave, GDSLayerData
 	DoWindow/K $Jhand
 
@@ -7532,13 +7536,10 @@ Function BiasBitMapGraphFunc()
 	ColorScale/C/N=text0/X=104.72/Y=0.56 image=BiasMap
 End
 
-function UpdateImageWrite(scanPoints,scanLines,decimation,scanDown,lithoBiasOff, whichCall)
-	variable scanPoints, scanLines, decimation, scanDown, lithoBiasOff, whichCall
+function UpdateImageWrite(scanLines,scanPoints,decimation,scanDown,lithoBiasOff, whichCall)
+	variable scanLines, scanPoints, decimation, scanDown, lithoBiasOff, whichCall
 
-//wave TimeWave = root:Packages:MFP3D:Main:TimeWave
-//variable start = StopMSTimer(-2)
-
-	variable modNum, checkNum, sectionCount, update = 0
+	variable modNum, checkNum, sectionCount
 	if (scanLines == 256)
 		modNum = 129
 		checkNum = 64
@@ -7565,6 +7566,7 @@ function UpdateImageWrite(scanPoints,scanLines,decimation,scanDown,lithoBiasOff,
 		WeDriveThis = "TipBias"
 	endif
 	
+	
 	if (whichCall)
 		
 		if (scanDown)
@@ -7572,11 +7574,10 @@ function UpdateImageWrite(scanPoints,scanLines,decimation,scanDown,lithoBiasOff,
 		else
 			ImageDrive[][checkNum,modNum-1] = Image[scanPoints*19/8-0-p][scanLines-(sectionCount*modNum)-q-1+1]
 		endif
-		ImageDrive[0,scanPoints*11/8-0][] = lithoBiasOff
-		ImageDrive[scanPoints*19/8+1,scanPoints*20/8-1][] = lithoBiasOff
-		errorStr += num2str(td_WriteString("OutWave0StatusCallback","UpdateImageWrite("+num2str(scanPoints)+","+num2str(scanLines)+","+num2str(decimation)+","+num2str(scanDown)+","+num2str(lithoBiasOff)+",0)"))+","
+		ImageDrive[0,scanPoints*11/8-0] = lithoBiasOff
+		ImageDrive[scanPoints*19/8+1,scanPoints*20/8-1] = lithoBiasOff
+		
 		ImageUpdateDone = 0
-		update = 1
 		
 	elseif ((!ImageUpdateDone) && (mod(lineCount,modNum) > checkNum))
 	
@@ -7585,19 +7586,18 @@ function UpdateImageWrite(scanPoints,scanLines,decimation,scanDown,lithoBiasOff,
 		else
 			ImageDrive[][0,checkNum-1] = Image[scanPoints*19/8-0-p][scanLines-((sectionCount+1)*modNum)-q-1+1]
 		endif
-		ImageDrive[0,scanPoints*11/8-0][] = lithoBiasOff
-		ImageDrive[scanPoints*19/8+1,scanPoints*20/8-1][] = lithoBiasOff
-		errorStr += num2str(td_WriteString("OutWave0StatusCallback",""))+","
+		ImageDrive[0,scanPoints*11/8-0] = lithoBiasOff
+		ImageDrive[scanPoints*19/8+1,scanPoints*20/8-1] = lithoBiasOff
+
 		ImageUpdateDone = 1
-		update = 1
-		
+
 	endif
 
+
 //	td_xSetOutWavePair(2,"update",WeDriveThis,ImageDrive,"Output.Dummy",ImageDrive,Decimation)		//k
-	if (update)
-		ErrorStr += num2str(td_XSetOutWavePair(2,"update,2",WeDriveThis,ImageDrive,"Output.Dummy",ImageDrive,Decimation))+","
-	endif
-//TimeWave[lineCount] = StopMSTimer(-2)-start
+
+	ErrorStr += num2str(td_XSetOutWave(2,"update,2",WeDriveThis,ImageDrive,Decimation))+","
+
 	arreportError(ErrorStr)
 
 end //UpdateImageWrite
@@ -7626,7 +7626,6 @@ function PrepareImageWrite(scanPoints,scanLines,scanDown)
 	if (!((DimSize(OriginalImage,0) == scanPoints) && (DimSize(OriginalImage,1) == scanLines)))
 
 		ImageInterpolate/F={scanPoints/DimSize(OriginalImage,0),scanLines/DimSize(OriginalImage,1)} bilinear OriginalImage
-		Wave M_InterpolatedImage
 		Duplicate/O M_InterpolatedImage Image		//make a copy of the interpolated image
 		Redimension/N=(scanPoints,scanLines) Image
 
@@ -7890,7 +7889,7 @@ Function MakePlotterManagerPanel(Var)
 	
 	if (2^bit & Control1Bit)
 		ControlName = "Set2CurrentButton"
-		MakeButton(GraphStr,ControlName,"Set 2 Current",80,20,50,CurrentTop,"DoPlotterFunc",Enab)
+		MakeButton(GraphStr,ControlName,"Set 2 Current",80,20,50,CurrentTop,"PMCurrentFolderFunc",Enab)
 
 		MakeButton(GraphStr,"Set_2_Current"+TabStr,"?",15,15,HelpPos,CurrentTop+1,HelpFuncStr,DisableHelp)
 		CheckBox $SetUpBaseName+num2str(bit)+SetUpTabStr,win=$GraphStr,pos={SetupLeft,CurrentTop},font="Arial",fsize=12,title="Show?"
@@ -8101,7 +8100,7 @@ Function MakePlotterManagerPanel(Var)
 	
 	
 	MakeButton(GraphStr,SetupName,"Setup",80,20,LeftPos,CurrentTop,SetupFunc,Enab)
-	MakeButton(GraphStr,"Setup"+TabStr,"?",15,15,HelpPos,CurrentTop+1,HelpFuncStr,DisableHelp)
+	MakeButton(GraphStr,"Plotter_Setup"+TabStr,"?",15,15,HelpPos,CurrentTop+1,HelpFuncStr,DisableHelp)
 	CurrentTop += 25
 	
 	
@@ -8255,31 +8254,15 @@ End //PlotterListFunc
 
 
 Function DoPlotterFunc(CtrlName)
-	String CtrlName		//used
-	
-	
-	String ParmName = ARConvertName2Parm(CtrlName,"Button")
-	
+	String CtrlName		//not used
+
 	String DataFolder = GETPMF()
 	Wave/T ParmDescript = $DataFolder+"DescriptionWave"
 	Wave Parms = $DataFolder+"ParmWave"
 	Wave/T DataList = $DataFolder+"DataList"
-	Variable TabNum = ARPanelTabNumLookup(cPlotterManagerName)
-	String TabStr = "_"+Num2Str(TabNum)
-	
-	
-	
-	StrSwitch (ParmName)
-		case "MakeGraph":
-			MakeAR2DPlotter(ParmDescript[%Graph][0],$ParmDescript[%Folder][0]+ParmDescript[%Wave][0],Parms[%RowIsX][0],Parms[%Append][0],Parms[%YIndex][0],Parms[%XIndex][0],ParmDescript[%Axis][0],Parms[%Start][0],Parms[%Stop][0])
-			break
-			
-		case "Set2Current":
-			SetPMFolder("DataFolderPop"+TabStr,NaN,GetDataFolder(1))
-			break
-			
-	endswitch
 
+
+	MakeAR2DPlotter(ParmDescript[%Graph][0],$ParmDescript[%Folder][0]+ParmDescript[%Wave][0],Parms[%RowIsX][0],Parms[%Append][0],Parms[%YIndex][0],Parms[%XIndex][0],ParmDescript[%Axis][0],Parms[%Start][0],Parms[%Stop][0])
 
 End //DoPlotterFunc
 
@@ -8813,8 +8796,8 @@ Function MakeAR2DPlotter(GraphStr,MasterWave,RowIsX,AddValue,YIndex,XIndex,Axis,
 	
 //Time to work on the graph.
 	DoWindow/F $GraphStr
-	if (!V_Flag)
-		Display/K=1/N=$GraphStr/W=(35.25,41.75,573.75,288.5)
+	if (!	V_Flag)
+		Display/K=1/N=$GraphStr
 	endif	
 	
 	UpdatePlotterWaves(GraphStr,Index,1)
@@ -9973,172 +9956,3 @@ Function ARPlotterXFlipFunc(CtrlName,Checked)
 End //ARPlotterXFlipFunc
 
 
-
-Function PlotterRotateHook(InfoStruct)
-	STRUCT WMWinHookStruct &InfoStruct
-	
-	//generic version cut from SectionRotateHook
-	
-	
-//EventMod
-//EventCode
-//WinName
-//MouseLoc.H
-//WinRect.Bottom
-//MouseLoc.V
-
-	//print InfoStruct.eventMod
-	Variable Exiting = 0
-	
-		
-	if (!(InfoStruct.eventMod & 2^3))
-		return(0)
-		Exiting = 1
-	endif
-//print Exiting
-	Variable TimeVal = stopmstimer(-2)*1e-6
-	String TimeStr
-	sprintf TimeStr,"%.10f",TimeVal
-	String GraphStr = InfoStruct.WinName
-	String Event = InfoStruct.EventName
-
-	Variable XPos, YPos
-	
-	//we will only do things when there is 1 XY wave plotted.
-	
-	
-	Variable Index
-	
-	ControlInfo/W=$graphstr $"TracePopup"
-	if (!V_Flag)
-		return(0)
-	endif
-	Index = V_Value-1
-	String TraceName = S_Value
-	
-	String DataFolder = GetAR2DPlotterFolder(GraphStr,"")
-	Wave/T TraceList = $DataFolder+"TraceList"
-	
-	String TraceListStr = ARTraceNameList(GraphStr,"*","*","*",TraceList[Index],OptionsFlag=5)
-
-
-	if (ItemsInList(TraceListStr,";") != 1)
-		return(0)
-	endif
-	TraceName = StringFromList(0,TraceListStr,";")
-	Wave/Z YData = TraceNameToWaveRef(GraphStr,TraceName)
-	Wave/Z XData = XWaveRefFromTrace(GraphStr,TraceName)
-	
-	
-	
-	if (!(WaveExists(YData)*WaveExists(XData)))
-		return(0)
-	endif
-	
-	
-	
-	
-	String InfoString = TraceInfo(GraphStr,TraceName,GetEndNum(TraceName))
-	String LAx = StringByKey("YAXIS",InfoString,":",";",0)
-	String BAx = StringByKey("XAXIS",InfoString,":",";",0)
-	
-	
-	String NoteStr = Note(YData)
-
-	Variable WeLive = NumberByKey("WeLive",NoteStr,":","\r")
-	if (IsNan(WeLive))
-		WeLive = 0
-	endif
-
-	
-	Variable Scaling
-	if (!Exiting)		//we are at the top of the graph
-		Exiting = InfoStruct.MouseLoc.V <= 2
-	endif
-	if (!Exiting)		//we are at the bottom there is a 30 pixel border if info is on, 
-		//so we just always exit if within 32 pixels of the bottom.
-		Exiting = InfoStruct.MouseLoc.V >= InfoStruct.WinRect.Bottom-32
-	endif
-
-	if ((StringMatch(Event,"MouseUp") == 1) || (Exiting))
-		//SetWindow $GraphStr,hookcursor=0
-		NoteStr = ReplaceStringByKey("WeLive",NoteStr,"0",":","\r")
-		Note/K YData
-		Note YData,NoteStr
-	elseif (StringMatch(Event,"MouseDown") == 1)
-	
-		XPos = InfoStruct.MouseLoc.H
-		XPos = AxisValFromPixel(GraphStr,BAx,XPos)
-		NoteStr = ReplaceStringByKey("XPos",NoteStr,num2str(XPos),":","\r")
-	
-		YPos = InfoStruct.MouseLoc.V
-		NoteStr = ReplaceStringByKey("YPos",NoteStr,num2str(YPos),":","\r")
-
-		NoteStr = ReplaceStringByKey("WeLive",NoteStr,"1",":","\r")
-		NoteStr = ReplaceStringByKey("Angle",NoteStr,"0",":","\r")
-		NoteStr = ReplaceStringByKey("Time",NoteStr,TimeStr,":","\r")
-		
-
-
-		GetAxis/W=$GraphStr/Q $LAx
-		Variable YRange, XRange
-		YRange = V_Max-V_Min
-		GetAxis/W=$GraphStr/Q $BAx
-		XRange = V_Max-V_Min
-		
-		Scaling = YRange/XRange
-
-		NoteStr = ReplaceNumberByKey("Scaling",NoteStr,Scaling,":","\r")
-
-
-		Note/K YData
-		Note YData,NoteStr
-//print NoteStr	
-		InfoStruct.cursorcode = 30
-		InfoStruct.doSetCursor = 1
-		//SetWindow $GraphStr,hookcursor=30
-	
-		return(1)
-	endif
-	if (Exiting)
-		return(0)
-	endif
-
-	if (StringMatch(Event,"mouseMoved") != 1)
-		return(0)
-	endif
-
-	if (WeLive == 0)
-		return(0)
-	endif
-	
-	Variable DeltaTime = 0.1/60
-	//Only update if we have given enought Time
-	Variable LastTime = NumberByKey("Time",NoteStr,":","\r")
-//print TimeVal-LastTime,(TimeVal-LastTime > DeltaTime)
-	if (TimeVal-LastTime < DeltaTime)
-		//print "Skip"
-		return(0)
-	endif
-	
-	NoteStr = ReplaceStringByKey("Time",NoteStr,TimeStr,":","\r")
-	Note/K YData
-	Note YData,NoteStr
-	
-//Print NoteStr+"///////////////////break\r"
-//return(0)
-	Variable dY = NumberByKey("YPos",NoteStr,":","\r")
-	Scaling = NumberByKey("Scaling",NoteStr,":","\r")
-	Variable PreAngle = NumberByKey("Angle",NoteStr,":","\r")
-	dY = InfoStruct.MouseLoc.V-dY
-	XPos = NumberByKey("XPos",NoteStr,":","\r")
-	
-	
-	
-//print dY*Scaling
-	RotateSectionTrace(YData,XData,Xpos,dY*Scaling-PreAngle)
-	InfoStruct.CursorCode = 30
-	InfoStruct.DoSetCursor = 1
-	
-	return(0)	
-End //PlotterRotateHook
