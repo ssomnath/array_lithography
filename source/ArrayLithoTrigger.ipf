@@ -2,12 +2,15 @@
 
 // Version History:
 
-// Current version : 1.1
-//	Goes through only the first line of master X,Y Litho waves and flashes an LED if near a line. 	
+// Version 1.2
+//	Lithography.ipf -> master writing bit / variable (instead of BNC outputs)
+// 	Goes through all lines in master X,Y Litho waves (searches current and next line only)
 
 // Upcoming changes:
-// Lithography.ipf -> master writing bit / variable (instead of BNC outputs)
 // New GUI for calibration only -> Manually set the X, Y offset.
+
+// Version : 1.1
+//	Goes through only the first line of master X,Y Litho waves and flashes an LED if near a line. 	
 
 // Version 1.0
 //	Calibrates the tip position.
@@ -43,9 +46,17 @@ Function LithoTriggerDriver()
 	Variable/G gposcalibrated= poscalibrated
 	Variable tolerance = NumVarOrDefault(":gtolerance",1E-7)
 	Variable/G gtolerance= tolerance
+	Variable doingLitho = NumVarOrDefault(":gdoingLitho",0)
+	Variable/G gdoingLitho= doingLitho
 	
 	if(!exists("gActive"))
 		Make/O/N=5 gActive
+	endif
+	
+	// Index (in wave) of line currently under  scrutiny
+	// MUST be reset on each lithography start
+	if(!exists("gCurrentIndex"))
+		Make/O/N=5 gCurrentIndex
 	endif	
 	
 	// Calibrate tip position here.
@@ -66,6 +77,16 @@ Function LithoTriggerDriver()
 
 	// Create the control panel.
 	Execute "LithoTriggerPanel()"
+End
+
+Function performingLitho(mode)
+	Variable mode
+	
+	String dfSave = GetDataFolder(1)
+	SetDataFolder root:packages:SmartLitho:ArrayTrigger
+	NVAR gDoingLitho
+	gDoingLitho = mode
+	SetDataFolder dfSave
 End
 
 
@@ -119,8 +140,8 @@ Function bgPosMonitor()
 	String dfSave = GetDataFolder(1)
 		
 	SetDataFolder root:packages:SmartLitho:ArrayTrigger
-	NVAR gXoffset, gYoffset, gXpos, gYpos, gRunMeter, gTolerance
-	Wave gActive
+	NVAR gXoffset, gYoffset, gXpos, gYpos, gRunMeter, gTolerance, gDoingLitho
+	Wave gActive, gCurrentIndex
 
 	gXpos = (gXoffset + td_RV("Input.X")*GV("XLVDTSens"))* 1E+6
 	gYpos = (gYoffset + td_RV("Input.Y")*GV("YLVDTSens")) * 1E+6
@@ -128,14 +149,40 @@ Function bgPosMonitor()
 	SetDataFolder root:packages:MFP3D:Litho
 	Wave XLitho, YLitho
 	
-	// Assume only one line for now
 	Variable i=0;
+	
+	
+	// Add in the main gDoingLitho check here
+	if(!gDoingLitho)
+		for(i=0;i<5; i=i+1) 
+			gActive[i] = 0
+		endfor
+		return !gRunMeter	
+	endif
+	
+	
+	// Assume only one line for now
 	for(i=0;i<1; i=i+1) // change to 5 later
-		Variable hit = pointLineDist(XLitho[0],YLitho[0],XLitho[1],YLitho[1],gXpos*1e-6,gYpos*1e-6, gTolerance)
+		Variable lineindex = gCurrentIndex[i]
+		Variable hit = pointLineDist(XLitho[lineindex],YLitho[lineindex],XLitho[lineindex+1],YLitho[lineindex+1],gXpos*1e-6,gYpos*1e-6, gTolerance)
 		if(hit==1)
 			gActive[i] = 1
+			// no changes to gCurrentIndex
 		else
-			gActive[i] = 0
+			//print "is not on line"
+			// Look in next line
+			if(numtype(XLitho[lineindex+2]) != 0)// End of this segment
+				gCurrentIndex[i] = gCurrentIndex[i] + 3
+			else // Next line starting from same end point as prev
+				gCurrentIndex[i] = gCurrentIndex[i] + 2
+			endif
+			lineindex = gCurrentIndex[i]
+			hit = pointLineDist(XLitho[lineindex],YLitho[lineindex],XLitho[lineindex+1],YLitho[lineindex+1],gXpos*1e-6,gYpos*1e-6, gTolerance)
+			if(hit==1)
+				gActive[i] = 1
+			else
+				gActive[i] = 0
+			endif
 		endif
 	endfor
 	
@@ -149,6 +196,10 @@ End
 
 Function pointLineDist(xa,ya,xb,yb,xc,yc, tolerance)
 	Variable xa,ya,xb,yb,xc,yc, tolerance
+	
+	if(numtype(xa) != 0 || numtype(ya) != 0 || numtype(xb) != 0 || numtype(yb) != 0 || numtype(xc) != 0 || numtype(yc) != 0)
+		return 0
+	endif
 	Variable dist = inf;
 	// r = (ac.ab)/(ab.ab)
 	Variable r = ((xc - xa)*(xb - xa) + (yc-ya)*(yb-ya))/((xb-xa)^2 + (yb-ya)^2);
