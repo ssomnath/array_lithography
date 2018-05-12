@@ -22,9 +22,19 @@
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Upcoming Changes:
-//       Lithography.ipf now uses Output.C and BNCOut2 instead of Output.B/Ou0 for single cantilever triggering.
+//	Depressed 'Litho' or 'Imaging' button when that mode is in use. LEDs are too much work.
+
+// Version 1.8:
+//	Option to choose triggering using sorted or unsorted patterns.
+
+// Version 1.7:
+//	Array triggering with unsorted lines within each layer.
+//	UI Improvements
+//	Crosspoint now -> Imaging, Litho, Unlock
+//	Crosspoint now sets positive setpoint for imaging 
 
 // Version 1.6:
+//       Lithography.ipf now uses Output.C and BNCOut2 instead of Output.B/Ou0 for single cantilever triggering.
 //       Cleaned up UI
 //       Added Calibration - manual/auto 
 //       Added  Crosspoint lock/unlock buttons
@@ -71,7 +81,6 @@
 Menu "UIUC"
 	SubMenu "Lithography"
 		"Array Litho Trigger", LithoTriggerDriver()
-		// "Tip Position Calibration", TipPosCalibDriver("") // There is no need for this.
 	End
 End
 
@@ -99,7 +108,7 @@ Function LithoTriggerDriver()
 	Variable/G gYpos= Ypos
 	Variable poscalibrated = NumVarOrDefault(":gposcalibrated",0)
 	Variable/G gposcalibrated= poscalibrated
-	Variable tolerance = NumVarOrDefault(":gtolerance",1E-7)
+	Variable tolerance = NumVarOrDefault(":gtolerance",1E-7)// This is safe. The tip does drift quite a bit otherwise
 	Variable/G gtolerance= tolerance
 	Variable doingLitho = NumVarOrDefault(":gdoingLitho",0)
 	Variable/G gdoingLitho= doingLitho
@@ -171,10 +180,12 @@ Window LithoTriggerPanel(): Panel
 	
 	SetDrawEnv fsize=18
 	DrawText 16,187, "Crosspoint"
+		
+	Button but_XPTLitholock,pos={23,200},size={50,32},title="Litho", proc=LockLithoXPT
 	
-	Button but_XPTlock,pos={33,200},size={78,25},title="Lock", proc=LockXPT
+	Button but_XPTReadlock,pos={84,200},size={71,32},title="Imaging", proc=LockReadXPT
 	
-	Button but_XPTreset,pos={135,200},size={78,25},title="Reset", proc=ResetXPT
+	Button but_XPTreset,pos={165,200},size={59,32},title="Reset", proc=ResetXPT
 	
 	
 	SetDrawEnv fsize=18
@@ -264,7 +275,7 @@ Function resetLithoSetup()
 	//print "Reset crosspoint and necessary waves"
 End
 
-Function LockXPT(ctrlname) : ButtonControl
+Function LockLithoXPT(ctrlname) : ButtonControl
 	String ctrlname
 	
 	XPTPopupFunc("LoadXPTPopup",7,"Litho")
@@ -272,6 +283,29 @@ Function LockXPT(ctrlname) : ButtonControl
 	WireXPT2("BNCOut1Popup","OutB")
 	XPTButtonFunc("WriteXPT")
 	ARCheckFunc("DontChangeXPTCheck",1)
+
+	//ModifyControl but_XPTLitholock, disable=2
+	// This probably affects litho as well - just to be safe
+	MainSetVarFunc("IntegralGainSetVar_0",10,"10","MasterVariablesWave[%IntegralGain][%Value]")
+	
+	AutoTipPosCalib("") // in case I forget
+	
+End
+
+Function LockReadXPT(ctrlname) : ButtonControl
+	String ctrlname
+	
+	XPTPopupFunc("LoadXPTPopup",4,"DCScan")
+	WireXPT2("BNCOut0Popup","OutC")// Line trigger
+	WireXPT2("InAPopup","BNCIn0")
+	WireXPT2("InBPopup","BNCIn1")
+	XPTButtonFunc("WriteXPT")
+	ARCheckFunc("DontChangeXPTCheck",1)
+	
+	//ModifyControl but_XPTReadlock, disable=2
+	
+	MainSetVarFunc("SetpointSetVar_0",0.2,"0.2","MasterVariablesWave[%DeflectionSetpointVolts][%Value]")
+	MainSetVarFunc("IntegralGainSetVar_0",0.5,"0.5","MasterVariablesWave[%IntegralGain][%Value]")
 	
 End
 
@@ -292,14 +326,14 @@ Function WireXPT2(whichpopup,channel)
 
 End
 
-
+// This is where the code determines if the tip position corresponds to litho or normal for each cantilever
 Function bgPosMonitor()
 		
 	String dfSave = GetDataFolder(1)
 		
 	SetDataFolder root:packages:SmartLitho:ArrayTrigger
 	NVAR gXoffset, gYoffset, gXpos, gYpos, gRunMeter, gTolerance, gDoingLitho
-	Wave gActive, gCurrentIndex, gPrevIndex
+	Wave gActive, gPrevIndex
 
 	gXpos = (gXoffset + td_RV("Input.X")*GV("XLVDTSens"))* 1E+6
 	gYpos = (gYoffset + td_RV("Input.Y")*GV("YLVDTSens")) * 1E+6
@@ -321,53 +355,62 @@ Function bgPosMonitor()
 	NVAR gLayerNum
 	
 	if(gLayerNum < 5)
-		print "Error: Less than 5 layers found for Array Lithography. Aborting"
+		DoAlert 0, "Error!!!\nInsufficient Litho layers.\nLayers 1-5 correspond to each tip.\nLayer 6 should encompass all other layers.\n"
 		SetDataFolder dfSave	
 		td_WV("Output.A",0)
 		td_WV("Output.B",0)
 		return gRunMeter	
 	endif
 	
-	// Assuming that the single cantilever layers are 1-5
-	// Master layer (only one shown) is layer #6 or greater
-	for(i=0;i<5; i=i+1) // Start with single cantilever for now. Replace with 5.
-		// 1. Look up the start of the particular layer
-		Variable layerstartindex = Layers[i][1];
+	//print "################"
+	
+	
+	for(i=0;i<5; i=i+1) 
+	
+		Variable hit=0;
 		
-		// 2. find the line using the stored indices as an offset to the start position of the layer
-		Variable lineindex = gCurrentIndex[i] + layerstartindex
-		
-		// 3. Find out if it was a hit by looking up the coordinates in the Master Litho waves:
-		Variable hit = pointLineDist(Master_XLitho[lineindex],Master_YLitho[lineindex],Master_XLitho[lineindex+1],Master_YLitho[lineindex+1],gXpos*1e-6,gYpos*1e-6, gTolerance)
-		//print "looking within line (" + num2str(Master_XLitho[lineindex])+","+num2str(Master_YLitho[lineindex])+") - ("+num2str(Master_XLitho[lineindex+1])+","+num2str(Master_XLitho[lineindex+1])+"). Hit: " + num2str(hit)
-		
-		if(hit==1)
-			gActive[i] = 1
-			gPrevIndex[i]=gCurrentIndex[i]
-			// no changes to gCurrentIndex
-		else
-			if(gPrevIndex[i] != gCurrentIndex[i])
-				// Searching for new line (current index) but still did not find it
-				// Don't look for the line after that. Just try again, next cycle.
-				gActive[i] = 0
-				//return !gRunMeter	
-			else
-				// Look in next line
-				if(numtype(Master_XLitho[lineindex+2]) != 0)// End of this segment
-					gCurrentIndex[i] = gCurrentIndex[i] + 3
-				else // Next line starting from same end point as prev
-					gCurrentIndex[i] = gCurrentIndex[i] + 2
-				endif
-				lineindex = gCurrentIndex[i] + layerstartindex
-				hit = pointLineDist(Master_XLitho[lineindex],Master_YLitho[lineindex],Master_XLitho[lineindex+1],Master_YLitho[lineindex+1],gXpos*1e-6,gYpos*1e-6, gTolerance)
-				if(hit==1)
-					gActive[i] = 1
-					gPrevIndex[i]=gCurrentIndex[i]
-				else
-					gActive[i] = 0
-				endif
+		// Check if tip was doing litho during previous run:
+		if(gPrevIndex[i] != -1)
+			// yes: check if tip is still within this line
+			hit = pointLineDist(Master_XLitho[gPrevIndex[i]],Master_YLitho[gPrevIndex[i]],Master_XLitho[gPrevIndex[i]+1],Master_YLitho[gPrevIndex[i]+1],gXpos*1e-6,gYpos*1e-6, gTolerance)
+			//print "looking within line (" + num2str(Master_XLitho[lineindex])+","+num2str(Master_YLitho[lineindex])+") - ("+num2str(Master_XLitho[lineindex+1])+","+num2str(Master_XLitho[lineindex+1])+"). Hit: " + num2str(hit)
+			if(hit ==1)
+				gActive[i] = 1;
+				////print "hit because of hit"
+				continue; // equivalent of saying move to next iteration
 			endif
-		endif
+			//print "no hit after hit"
+			// Not a hit:
+			gPrevIndex[i] = -1; // but still search all lines for a hit.
+			// Might be worth looking at the immidiate next line alone once. 
+		endif //else
+			// If code comes here: tip may have been doing litho previously but is not on that previous line now
+					
+			// Start a loop to see if we get a hit for EVERY line:
+			Variable j=Layers[i][1];
+			gPrevIndex[i] = -1; // No more searching. Move to next cantilever
+			gActive[i] = 0;	
+			do	
+				// 1. Check if hit:
+				hit = pointLineDist(Master_XLitho[j],Master_YLitho[j],Master_XLitho[j+1],Master_YLitho[j+1],gXpos*1e-6,gYpos*1e-6, gTolerance)
+				if(hit==1)
+					//print "line " + num2str(j) +" was a hit!"
+					gActive[i] = 1;
+					gPrevIndex[i] =j;
+					break; // break this while loop only equivalent of saying move to next cantilever;
+				endif
+				//print "line " + num2str(j) +" was not a hit. Moving to next line"
+				// 2. If not. move forward to next line
+				if(numtype(Master_XLitho[j+2]) != 0)// End of this segment
+					j = j + 3;
+				else // Next line starting from same end point as prev
+					j = j + 1;
+				endif
+								
+			while(j <= Layers[i][2])	
+
+		//endif
+		
 	endfor
 	
 	// Now trigger using the DACs
@@ -476,11 +519,11 @@ Window TipPosCalibPanel(): Panel
 	DrawText 16,105, "Offset (m)"
 		
 	SetVariable sv_Xoffset,pos={16,113},size={95,20},title="X"
-	SetVariable sv_Xoffset,fsize=14, limits={1E-8,1E-5,0}
+	SetVariable sv_Xoffset,fsize=14, limits={1E-8,1E-4,0}
 	SetVariable sv_Xoffset, value=root:Packages:SmartLitho:ArrayTrigger:gXoffset
 	
 	SetVariable sv_Yoffset,pos={130,113},size={95,20},title="Y"
-	SetVariable sv_Yoffset,fsize=14, limits={1E-8,1E-5,0}
+	SetVariable sv_Yoffset,fsize=14, limits={1E-8,1E-4,0}
 	SetVariable sv_Yoffset, value=root:Packages:SmartLitho:ArrayTrigger:gYoffset
 	
 	SetVariable sv_tolerance,pos={14,158},size={211,20},title="Position Tolerance (m)"
