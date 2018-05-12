@@ -2,7 +2,12 @@
 
 // Version History:
 
-// Current version : 1.0
+// Current version : 1.1
+//	Goes through only the first line of master X,Y Litho waves and flashes an LED if near a line. 	
+
+// Upcoming changes:
+// Lithography.ipf -> master writing bit / variable (instead of BNC outputs)
+// New GUI for calibration only -> Manually set the X, Y offset.
 
 // Version 1.0
 //	Calibrates the tip position.
@@ -36,7 +41,12 @@ Function LithoTriggerDriver()
 	Variable/G gYpos= Ypos
 	Variable poscalibrated = NumVarOrDefault(":gposcalibrated",0)
 	Variable/G gposcalibrated= poscalibrated
+	Variable tolerance = NumVarOrDefault(":gtolerance",1E-7)
+	Variable/G gtolerance= tolerance
 	
+	if(!exists("gActive"))
+		Make/O/N=5 gActive
+	endif	
 	
 	// Calibrate tip position here.
 	if(gPosCalibrated == 0)
@@ -62,7 +72,7 @@ End
 Window LithoTriggerPanel(): Panel
 	
 	PauseUpdate; Silent 1		// building window...
-	NewPanel /K=1 /W=(485,145, 745,255) as "Litho Trigger Panel"
+	NewPanel /K=1 /W=(485,145, 745,435) as "Litho Trigger Panel"
 	SetDrawLayer UserBack
 	
 	SetDrawEnv fsize=18
@@ -75,9 +85,33 @@ Window LithoTriggerPanel(): Panel
 	ValDisplay vd_Ypos,pos={133,50},size={100,20},title="Y:"
 	ValDisplay vd_Ypos,limits={0,10,0},fsize=14
 	ValDisplay vd_Ypos, value=root:Packages:SmartLitho:ArrayTrigger:GYpos
+	
+	Button but_ManCalib,pos={17,86},size={218,25},title="Manual Tip Position Calibration"//, proc=addExternalPattern
+	
+	SetVariable sv_tolerance,pos={47,127},size={150,20},title="Tolerance"
+	SetVariable sv_tolerance,fsize=14, limits={1E-8,1E-5,0}
+	SetVariable sv_tolerance, value=root:Packages:SmartLitho:ArrayTrigger:GTolerance
+	
+	SetDrawEnv fsize=18
+	DrawText 16,185, "Active Cantilevers"
+	
+	SetDrawEnv fsize=16
+	DrawText 21,211, "1"
+	SetDrawEnv fsize=16
+	DrawText 61,211, "2"
+	SetDrawEnv fsize=16
+	DrawText 101,211, "3"
+	SetDrawEnv fsize=16
+	DrawText 141,211, "4"
+	SetDrawEnv fsize=16
+	DrawText 181,211, "5"
+	
+	ValDisplay vd_activeLED1, title="", value=Root:Packages:SmartLitho:ArrayTrigger:gActive[0]
+	ValDisplay vd_activeLED1, mode=2, limits={0,1,0}, highColor= (0,65280,0), zeroColor= (0,12032,0)
+	ValDisplay vd_activeLED1, lowColor= (0,12032,0), pos={18,220},size={16,16}, barmisc={0,0}, fsize=14
 
 	SetDrawEnv fsize=16
-	DrawText 38,104, "Suhas Somnath, UIUC 2011"
+	DrawText 44,281, "Suhas Somnath, UIUC 2011"
 End
 
 Function bgPosMonitor()
@@ -85,16 +119,60 @@ Function bgPosMonitor()
 	String dfSave = GetDataFolder(1)
 		
 	SetDataFolder root:packages:SmartLitho:ArrayTrigger
-	NVAR gXoffset, gYoffset, gXpos, gYpos, gRunMeter
+	NVAR gXoffset, gYoffset, gXpos, gYpos, gRunMeter, gTolerance
+	Wave gActive
 
 	gXpos = (gXoffset + td_RV("Input.X")*GV("XLVDTSens"))* 1E+6
 	gYpos = (gYoffset + td_RV("Input.Y")*GV("YLVDTSens")) * 1E+6
+	
+	SetDataFolder root:packages:MFP3D:Litho
+	Wave XLitho, YLitho
+	
+	// Assume only one line for now
+	Variable i=0;
+	for(i=0;i<1; i=i+1) // change to 5 later
+		Variable hit = pointLineDist(XLitho[0],YLitho[0],XLitho[1],YLitho[1],gXpos*1e-6,gYpos*1e-6, gTolerance)
+		if(hit==1)
+			gActive[i] = 1
+		else
+			gActive[i] = 0
+		endif
+	endfor
+	
 	
 	SetDataFolder dfSave	
 		
 	// A return value of 1 stops the background task. a value of 0 keeps it running
 	return !gRunMeter					
 	
+End
+
+Function pointLineDist(xa,ya,xb,yb,xc,yc, tolerance)
+	Variable xa,ya,xb,yb,xc,yc, tolerance
+	Variable dist = inf;
+	// r = (ac.ab)/(ab.ab)
+	Variable r = ((xc - xa)*(xb - xa) + (yc-ya)*(yb-ya))/((xb-xa)^2 + (yb-ya)^2);
+	//print "r = " + num2str(r)
+	if(r > 0 && r < 1)
+		//print "case 1"
+		// Finding the point p where cp is perpendicular to AB:
+		Variable xp = xa + r*(xb-xa);
+    		Variable yp = ya + r*(yb-ya);
+    		//print "\tPoint P=("+num2str(xp)+","+num2str(yp)+")"
+    		dist = ((xp-xc)^2 + (yp-yc)^2)^0.5
+    	elseif(r >=1)
+		//print "case 2"
+		dist = ((xb-xc)^2 + (yb-yc)^2)^0.5
+	else //if(r <= 0)
+		//print "case 3 ( r<0)"
+		dist = ((xa-xc)^2 + (ya-yc)^2)^0.5
+	endif
+	//print "Distance = " + num2str(dist);
+	if(dist > tolerance)
+		return 0
+	else
+		return 1
+	endif
 End
 
 
